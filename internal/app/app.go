@@ -3,13 +3,13 @@ package app
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
 	"rlangga/internal/idempotency"
 	"rlangga/internal/lock"
 	"rlangga/internal/log"
+	"rlangga/internal/monitor"
 	"rlangga/internal/redisx"
 )
 
@@ -27,7 +27,7 @@ func Init() {
 	fmt.Println("RLANGGA INIT")
 }
 
-// HandleMint is PR-001 baseline: buy → hold → sell (replaced by PR-002 monitor).
+// HandleMint: PR-002 adaptive monitor after successful buy (PR-001 execution path).
 func HandleMint(mint string) {
 	if idempotency.IsDuplicate(mint) {
 		return
@@ -40,13 +40,13 @@ func HandleMint(mint string) {
 		lock.UnlockMint(mint)
 		return
 	}
-	time.Sleep(10 * time.Second)
-	executor.SafeSellWithValidation(mint)
+	buySOL := config.C.TradeSize
+	monitor.MonitorPosition(mint, buySOL)
 	lock.UnlockMint(mint)
 }
 
 // StartWorker blocks until the process stops (event listener added in later PRs).
 func StartWorker() {
-	log.Info("Worker running (PR-001: no mint listener — integrate pump/stream in follow-up)")
+	log.Info("Worker running (PR-002: adaptive exit — add mint listener / stream in follow-up)")
 	select {}
 }

@@ -265,12 +265,12 @@ Standar wajib (piramida, CI, determinisme): [rlangga-test-standard.md](./rlangga
 
 | Kriteria | Status |
 |----------|--------|
-| PnL akurat (quote-based) | [ ] |
-| Adaptive exit aktif | [ ] |
-| Momentum drop bekerja | [ ] |
-| Tidak exit terlalu agresif di noise (grace) | [ ] |
-| Tidak over-hold (max hold + drop) | [ ] |
-| Integrasi PR-001 stabil (sell + RPC + lock) | [ ] |
+| PnL akurat (quote-based) | [x] |
+| Adaptive exit aktif | [x] |
+| Momentum drop bekerja | [x] |
+| Tidak exit terlalu agresif di noise (grace) | [x] |
+| Tidak over-hold (max hold + drop) | [x] |
+| Integrasi PR-001 stabil (sell + RPC + lock) | [x] |
 
 ---
 
