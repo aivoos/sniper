@@ -56,6 +56,28 @@ func TestInit_ConfigError(t *testing.T) {
 	}
 }
 
+func TestInit_BotsJSONInvalid(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	unsetConfigEnv(t)
+	t.Setenv("BOTS_JSON", `{`)
+	if err := Init(); err == nil {
+		t.Fatal("expected bots parse error")
+	}
+}
+
 func TestInit_ErrRedisDial(t *testing.T) {
 	t.Cleanup(func() {
 		redisx.Client = nil
@@ -176,6 +198,7 @@ func unsetConfigEnv(t *testing.T) {
 		"PANIC_SL", "MOMENTUM_DROP", "QUOTE_INTERVAL_MS", "RPC_URL",
 		"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
 		"REPORT_EVERY_N_TRADES", "REPORT_INTERVAL_MIN", "REPORT_LOAD_RECENT",
+		"BOTS_JSON",
 	}
 	for _, k := range keys {
 		_ = os.Unsetenv(k)
