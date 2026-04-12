@@ -35,6 +35,13 @@ type Config struct {
 	PanicSL         float64 `validate:"gte=0"`
 	MomentumDrop    float64 `validate:"gte=0"`
 	QuoteIntervalMS int     `validate:"gt=0"`
+
+	// PR-003 reporting (optional Telegram)
+	TelegramBotToken   string `validate:"omitempty"`
+	TelegramChatID     string `validate:"omitempty"`
+	ReportEveryNTrades int    `validate:"gte=0"`
+	ReportIntervalMin  int    `validate:"gte=0"`
+	ReportMaxTrades    int    `validate:"gte=0"`
 }
 
 // Load reads configuration from the environment, validates struct tags, then applies runtime guards.
@@ -100,26 +107,43 @@ func parseEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	reportN, err := intFromEnv("REPORT_EVERY_N_TRADES", 5, 0)
+	if err != nil {
+		return nil, err
+	}
+	reportMin, err := intFromEnv("REPORT_INTERVAL_MIN", 30, 0)
+	if err != nil {
+		return nil, err
+	}
+	reportMax, err := intFromEnv("REPORT_LOAD_RECENT", 200, 1)
+	if err != nil {
+		return nil, err
+	}
 
 	stub := os.Getenv("RPC_STUB") == "1" || os.Getenv("RPC_STUB") == "true"
 
 	c := &Config{
-		RedisURL:         os.Getenv("REDIS_URL"),
-		RPCURL:           os.Getenv("RPC_URL"),
-		PumpPortalURL:    os.Getenv("PUMPPORTAL_URL"),
-		PumpAPIURL:       os.Getenv("PUMPAPI_URL"),
-		TradeSize:        trade,
-		TimeoutMS:        timeout,
-		RecoveryInterval: time.Duration(recSec) * time.Second,
-		RPCStub:          stub,
-		GraceSeconds:     grace,
-		MinHold:          minHold,
-		MaxHold:          maxHold,
-		TakeProfit:       tp,
-		StopLoss:         sl,
-		PanicSL:          panicSL,
-		MomentumDrop:     mom,
-		QuoteIntervalMS:  qms,
+		RedisURL:           os.Getenv("REDIS_URL"),
+		RPCURL:             os.Getenv("RPC_URL"),
+		PumpPortalURL:      os.Getenv("PUMPPORTAL_URL"),
+		PumpAPIURL:         os.Getenv("PUMPAPI_URL"),
+		TradeSize:          trade,
+		TimeoutMS:          timeout,
+		RecoveryInterval:   time.Duration(recSec) * time.Second,
+		RPCStub:            stub,
+		GraceSeconds:       grace,
+		MinHold:            minHold,
+		MaxHold:            maxHold,
+		TakeProfit:         tp,
+		StopLoss:           sl,
+		PanicSL:            panicSL,
+		MomentumDrop:       mom,
+		QuoteIntervalMS:    qms,
+		TelegramBotToken:   os.Getenv("TELEGRAM_BOT_TOKEN"),
+		TelegramChatID:     os.Getenv("TELEGRAM_CHAT_ID"),
+		ReportEveryNTrades: reportN,
+		ReportIntervalMin:  reportMin,
+		ReportMaxTrades:    reportMax,
 	}
 	return c, nil
 }

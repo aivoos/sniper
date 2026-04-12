@@ -29,15 +29,16 @@ func BuyAndValidate(mint string) bool {
 }
 
 // SafeSellWithValidation retries sell with RPC confirmation.
-func SafeSellWithValidation(mint string) {
+func SafeSellWithValidation(mint string) bool {
 	for i := 0; i < 5; i++ {
 		sig, err := sell(mint)
 		if err == nil && rpc.WaitTxConfirmed(sig) {
-			return
+			return true
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
 	log.Error("SELL FAILED: " + mint)
+	return false
 }
 
 func pumpPortalBuy(mint string) (string, error) {

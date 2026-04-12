@@ -11,7 +11,27 @@ import (
 
 	"rlangga/internal/config"
 	"rlangga/internal/rpc"
+	"rlangga/internal/testutil"
 )
+
+func TestRecoverAll_SellHTTPFails(t *testing.T) {
+	testutil.UseMiniredis(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("PUMPPORTAL_URL", srv.URL)
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("RPC_URL", "http://127.0.0.1:9")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	rpc.WalletTokensHook = func() []rpc.Token {
+		return []rpc.Token{{Mint: "bad", Amount: 1}}
+	}
+	t.Cleanup(func() { rpc.WalletTokensHook = nil })
+	RecoverAll()
+}
 
 func TestRecoverAll_NoPanic(t *testing.T) {
 	rpc.WalletTokensHook = nil
@@ -20,13 +40,18 @@ func TestRecoverAll_NoPanic(t *testing.T) {
 }
 
 func TestRecoverAll_SellsPositiveBalance(t *testing.T) {
+	testutil.UseMiniredis(t)
 	sellSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/sell" {
+		switch r.URL.Path {
+		case "/sell":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"signature": "x"})
+		case "/quote":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]float64{"sol": 0.11})
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"signature": "x"})
 	}))
 	t.Cleanup(sellSrv.Close)
 
