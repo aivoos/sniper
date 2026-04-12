@@ -14,11 +14,13 @@ func TestSaveTrade_LoadRecent_Dedupe(t *testing.T) {
 	tr := Trade{
 		Mint: "m1", BuySOL: 0.1, SellSOL: 0.11, PnLSOL: 0.01, Percent: 10, DurationSec: 5, TS: 100,
 	}
-	if err := SaveTrade(tr); err != nil {
-		t.Fatal(err)
+	saved, err := SaveTrade(tr)
+	if err != nil || !saved {
+		t.Fatalf("first save: err=%v saved=%v", err, saved)
 	}
-	if err := SaveTrade(tr); err != nil {
-		t.Fatal(err)
+	saved2, err := SaveTrade(tr)
+	if err != nil || saved2 {
+		t.Fatalf("dedupe expected saved=false, got %v err=%v", saved2, err)
 	}
 
 	got, err := LoadRecent(10)
@@ -49,7 +51,7 @@ func TestSaveTrade_NoRedis(t *testing.T) {
 	prev := redisx.Client
 	redisx.Client = nil
 	t.Cleanup(func() { redisx.Client = prev })
-	if err := SaveTrade(Trade{Mint: "x"}); err == nil {
+	if _, err := SaveTrade(Trade{Mint: "x"}); err == nil {
 		t.Fatal("expected error")
 	}
 }

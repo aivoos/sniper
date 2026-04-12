@@ -1,19 +1,32 @@
 package monitor
 
 import (
+	"fmt"
 	"time"
 
+	"rlangga/internal/bot"
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
 	"rlangga/internal/exit"
+	"rlangga/internal/guard"
+	"rlangga/internal/log"
 	"rlangga/internal/pnl"
 	"rlangga/internal/quote"
 	"rlangga/internal/report"
 	"rlangga/internal/store"
 )
 
-// MonitorPosition polls quote until adaptive exit triggers, then sells.
+// MonitorPosition polls quote until adaptive exit triggers, then sells (global config profile).
 func MonitorPosition(mint string, buySOL float64) {
+	cfg := config.C
+	if cfg == nil {
+		return
+	}
+	MonitorPositionWithBot(mint, buySOL, bot.FromConfig(cfg))
+}
+
+// MonitorPositionWithBot uses exit thresholds from the given bot profile (PR-004); quote interval from config.C.
+func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
 	cfg := config.C
 	if cfg == nil {
 		return
@@ -35,7 +48,8 @@ func MonitorPosition(mint string, buySOL float64) {
 		q := quote.GetSellQuote(mint)
 		pct := pnl.CalcPnL(buySOL, q)
 
-		if exit.ShouldSellAdaptive(pct, elapsed, state, cfg) {
+		if exit.ShouldSellAdaptiveBot(pct, elapsed, state, b) {
+			log.Info(fmt.Sprintf("[%s] SELL %s", b.Name, mint))
 			if !executor.SafeSellWithValidation(mint) {
 				return
 			}
@@ -47,8 +61,9 @@ func MonitorPosition(mint string, buySOL float64) {
 				pctSOL = (pnlSOL / buySOL) * 100
 			}
 			dur := int(time.Since(start).Seconds())
-			_ = store.SaveTrade(store.Trade{
+			saved, err := store.SaveTrade(store.Trade{
 				Mint:        mint,
+				BotName:     b.Name,
 				BuySOL:      buySOL,
 				SellSOL:     sellSOL,
 				PnLSOL:      pnlSOL,
@@ -56,6 +71,9 @@ func MonitorPosition(mint string, buySOL float64) {
 				DurationSec: dur,
 				TS:          ts,
 			})
+			if err == nil && saved {
+				_ = guard.UpdateDailyLoss(pnlSOL)
+			}
 			_ = report.NotifyTradeSaved()
 			return
 		}

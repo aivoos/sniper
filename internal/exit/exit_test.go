@@ -3,6 +3,7 @@ package exit
 import (
 	"testing"
 
+	"rlangga/internal/bot"
 	"rlangga/internal/config"
 )
 
@@ -59,6 +60,31 @@ func TestShouldSellAdaptive_NilCfg(t *testing.T) {
 func TestShouldSellAdaptive_NilState(t *testing.T) {
 	if ShouldSellAdaptive(1, 1, nil, cfgExit()) {
 		t.Fatal("nil state")
+	}
+}
+
+func TestShouldSellAdaptiveBot_NilState(t *testing.T) {
+	b := bot.FromConfig(cfgExit())
+	if ShouldSellAdaptiveBot(1, 1, nil, b) {
+		t.Fatal("nil state")
+	}
+}
+
+func TestShouldSellAdaptiveBot_MatchesFromConfig(t *testing.T) {
+	c := cfgExit()
+	b := bot.FromConfig(c)
+	for _, tc := range []struct {
+		pnl     float64
+		elapsed int
+	}{
+		{-9, 100},
+		{3, 1},
+	} {
+		s1 := &PositionState{}
+		s2 := &PositionState{}
+		if g, h := ShouldSellAdaptive(tc.pnl, tc.elapsed, s1, c), ShouldSellAdaptiveBot(tc.pnl, tc.elapsed, s2, b); g != h {
+			t.Fatalf("mismatch pnl=%v elapsed=%v: %v vs %v", tc.pnl, tc.elapsed, g, h)
+		}
 	}
 }
 

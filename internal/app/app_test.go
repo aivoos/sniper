@@ -11,7 +11,9 @@ import (
 	"github.com/alicebob/miniredis/v2"
 
 	"rlangga/internal/config"
+	"rlangga/internal/guard"
 	"rlangga/internal/redisx"
+	"rlangga/internal/wallet"
 )
 
 func TestInit_OK(t *testing.T) {
@@ -53,6 +55,28 @@ func TestInit_ConfigError(t *testing.T) {
 	unsetConfigEnv(t)
 	if err := Init(); err == nil {
 		t.Fatal("expected config error")
+	}
+}
+
+func TestInit_BotsJSONInvalid(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	unsetConfigEnv(t)
+	t.Setenv("BOTS_JSON", `{`)
+	if err := Init(); err == nil {
+		t.Fatal("expected bots parse error")
 	}
 }
 
@@ -132,6 +156,83 @@ func TestHandleMint_AdaptiveExit(t *testing.T) {
 	HandleMint(mint)
 }
 
+func TestHandleMint_GuardDailyQuota(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MAX_DAILY_TRADES", "1")
+	unsetConfigEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := guard.IncrDailyTradeCount(); err != nil {
+		t.Fatal(err)
+	}
+	HandleMint("mintQuotaBlock")
+}
+
+func TestHandleMint_GuardKillSwitch(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MAX_DAILY_LOSS", "0.1")
+	unsetConfigEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := guard.UpdateDailyLoss(-0.2); err != nil {
+		t.Fatal(err)
+	}
+	HandleMint("mintKillSwitch")
+}
+
+func TestHandleMint_GuardBlocksLowBalance(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		wallet.BalanceHook = nil
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MIN_BALANCE", "5")
+	unsetConfigEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	wallet.BalanceHook = func() float64 { return 0.01 }
+	HandleMint("mintGuardBlock")
+}
+
 func TestHandleMint_BuyFails(t *testing.T) {
 	s, err := miniredis.Run()
 	if err != nil {
@@ -176,6 +277,8 @@ func unsetConfigEnv(t *testing.T) {
 		"PANIC_SL", "MOMENTUM_DROP", "QUOTE_INTERVAL_MS", "RPC_URL",
 		"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
 		"REPORT_EVERY_N_TRADES", "REPORT_INTERVAL_MIN", "REPORT_LOAD_RECENT",
+		"BOTS_JSON",
+		"MAX_DAILY_LOSS", "MIN_BALANCE", "ENABLE_TRADING", "MAX_DAILY_TRADES",
 	}
 	for _, k := range keys {
 		_ = os.Unsetenv(k)

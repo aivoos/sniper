@@ -6,6 +6,8 @@ import (
 
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
+	"rlangga/internal/guard"
+	"rlangga/internal/orchestrator"
 	"rlangga/internal/quote"
 	"rlangga/internal/redisx"
 	"rlangga/internal/report"
@@ -35,8 +37,10 @@ func RecoverAll() {
 		if buySOL > 0 {
 			pct = (pnlSOL / buySOL) * 100
 		}
-		_ = store.SaveTrade(store.Trade{
+		rb := orchestrator.RecoveryBot()
+		saved, err := store.SaveTrade(store.Trade{
 			Mint:        t.Mint,
+			BotName:     rb.Name,
 			BuySOL:      buySOL,
 			SellSOL:     sellSOL,
 			PnLSOL:      pnlSOL,
@@ -44,6 +48,9 @@ func RecoverAll() {
 			DurationSec: 0,
 			TS:          ts,
 		})
+		if err == nil && saved {
+			_ = guard.UpdateDailyLoss(pnlSOL)
+		}
 		_ = report.NotifyTradeSaved()
 	}
 }

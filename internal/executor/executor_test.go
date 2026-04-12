@@ -9,6 +9,27 @@ import (
 	"rlangga/internal/config"
 )
 
+func TestBuyAndValidate_PortalPrimary(t *testing.T) {
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/buy" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"signature": "portal-sig"})
+	}))
+	t.Cleanup(portal.Close)
+	t.Setenv("PUMPPORTAL_URL", portal.URL)
+	t.Setenv("PUMPAPI_URL", "")
+	t.Setenv("RPC_STUB", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if !BuyAndValidate("So11111111111111111111111111111111111111112") {
+		t.Fatal("expected portal path")
+	}
+}
+
 func TestBuyAndValidate_FallbackAndConfirm(t *testing.T) {
 	pumpFail := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

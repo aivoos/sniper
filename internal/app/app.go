@@ -4,16 +4,20 @@ import (
 	"errors"
 	"fmt"
 
+	"rlangga/internal/bot"
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
+	"rlangga/internal/guard"
 	"rlangga/internal/idempotency"
 	"rlangga/internal/lock"
 	"rlangga/internal/log"
 	"rlangga/internal/monitor"
+	"rlangga/internal/orchestrator"
 	"rlangga/internal/redisx"
+	"rlangga/internal/wallet"
 )
 
-// Init loads config and connects Redis.
+// Init loads config, connects Redis, and installs multi-bot profiles (PR-004).
 func Init() error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -25,25 +29,40 @@ func Init() error {
 	if err := redisx.Init(cfg.RedisURL); err != nil {
 		return fmt.Errorf("redis: %w", err)
 	}
+	profiles, err := bot.LoadBots()
+	if err != nil {
+		return fmt.Errorf("bots: %w", err)
+	}
+	orchestrator.Init(profiles)
 	fmt.Println("RLANGGA INIT")
 	return nil
 }
 
-// HandleMint: PR-002 adaptive monitor after successful buy (PR-001 execution path).
+// HandleMint: PR-005 gate → idempotency → lock → buy → adaptive monitor (PR-002).
 func HandleMint(mint string) {
+	bal := wallet.GetSOLBalance()
+	if !guard.CanTrade(bal) {
+		log.Info("TRADE BLOCKED")
+		return
+	}
 	if idempotency.IsDuplicate(mint) {
 		return
 	}
 	if !lock.LockMint(mint) {
 		return
 	}
+	b := orchestrator.NextBot()
+	log.Info(fmt.Sprintf("[%s] BUY %s", b.Name, mint))
 	success := executor.BuyAndValidate(mint)
 	if !success {
 		lock.UnlockMint(mint)
 		return
 	}
+	if err := guard.IncrDailyTradeCount(); err != nil {
+		log.Info("guard: IncrDailyTradeCount: " + err.Error())
+	}
 	buySOL := config.C.TradeSize
-	monitor.MonitorPosition(mint, buySOL)
+	monitor.MonitorPositionWithBot(mint, buySOL, b)
 	lock.UnlockMint(mint)
 }
 
