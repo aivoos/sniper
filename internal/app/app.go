@@ -1,8 +1,8 @@
 package app
 
 import (
+	"errors"
 	"fmt"
-	"os"
 
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
@@ -13,18 +13,20 @@ import (
 	"rlangga/internal/redisx"
 )
 
-// Init loads config and connects Redis. Exits process on fatal error.
-func Init() {
-	cfg := config.Load()
+// Init loads config and connects Redis.
+func Init() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
 	if cfg.RedisURL == "" {
-		log.Error("REDIS_URL is required")
-		os.Exit(1)
+		return errors.New("REDIS_URL is required")
 	}
 	if err := redisx.Init(cfg.RedisURL); err != nil {
-		log.Error("redis: " + err.Error())
-		os.Exit(1)
+		return fmt.Errorf("redis: %w", err)
 	}
 	fmt.Println("RLANGGA INIT")
+	return nil
 }
 
 // HandleMint: PR-002 adaptive monitor after successful buy (PR-001 execution path).

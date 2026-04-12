@@ -25,3 +25,20 @@ func TestLockMint_NoRedis(t *testing.T) {
 		t.Fatal("without redis should not acquire")
 	}
 }
+
+func TestPing_NoRedis(t *testing.T) {
+	if err := Ping(); err == nil {
+		t.Fatal("expected error without redis")
+	}
+}
+
+func TestPing_OK(t *testing.T) {
+	testutil.UseMiniredis(t)
+	if err := Ping(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnlockMint_NoRedis(t *testing.T) {
+	UnlockMint("x")
+}

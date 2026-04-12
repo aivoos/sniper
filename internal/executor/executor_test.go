@@ -40,7 +40,9 @@ func TestBuyAndValidate_FallbackAndConfirm(t *testing.T) {
 	t.Setenv("RPC_URL", rpcSrv.URL)
 	t.Setenv("RPC_STUB", "0")
 	t.Setenv("TIMEOUT_MS", "3000")
-	config.Load()
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
 
 	if !BuyAndValidate("So11111111111111111111111111111111111111112") {
 		t.Fatal("expected buy success via API fallback + RPC confirm")
@@ -51,9 +53,31 @@ func TestBuyAndValidate_NoURLs(t *testing.T) {
 	t.Setenv("PUMPPORTAL_URL", "")
 	t.Setenv("PUMPAPI_URL", "")
 	t.Setenv("RPC_STUB", "1")
-	config.Load()
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
 	if BuyAndValidate("mint") {
 		t.Fatal("expected false when pump not configured")
+	}
+}
+
+func TestBuyAndValidate_InvalidBuyJSON(t *testing.T) {
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/buy" {
+			_, _ = w.Write([]byte(`{`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(portal.Close)
+	t.Setenv("PUMPPORTAL_URL", portal.URL)
+	t.Setenv("PUMPAPI_URL", "")
+	t.Setenv("RPC_STUB", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if BuyAndValidate("m") {
+		t.Fatal("expected false on bad JSON")
 	}
 }
 
@@ -69,6 +93,8 @@ func TestSafeSellWithValidation_Success(t *testing.T) {
 	t.Cleanup(portal.Close)
 	t.Setenv("PUMPPORTAL_URL", portal.URL)
 	t.Setenv("RPC_STUB", "1")
-	config.Load()
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
 	SafeSellWithValidation("mintZ")
 }
