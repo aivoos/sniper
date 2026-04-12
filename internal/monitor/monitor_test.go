@@ -9,9 +9,11 @@ import (
 
 	"rlangga/internal/config"
 	"rlangga/internal/monitor"
+	"rlangga/internal/testutil"
 )
 
 func TestMonitorPosition_PanicExitFirstQuote(t *testing.T) {
+	testutil.UseMiniredis(t)
 	t.Setenv("RPC_STUB", "1")
 	t.Setenv("QUOTE_INTERVAL_MS", "20")
 	t.Setenv("PANIC_SL", "8")
@@ -54,6 +56,7 @@ func TestMonitorPosition_PanicExitFirstQuote(t *testing.T) {
 }
 
 func TestMonitorPosition_ZeroIntervalUsesDefault(t *testing.T) {
+	testutil.UseMiniredis(t)
 	t.Setenv("RPC_STUB", "1")
 	t.Setenv("QUOTE_INTERVAL_MS", "1")
 	t.Setenv("PANIC_SL", "8")

@@ -11,6 +11,8 @@ var envKeys = []string{
 	"REDIS_URL", "RPC_URL", "PUMPPORTAL_URL", "PUMPAPI_URL",
 	"GRACE_SECONDS", "MIN_HOLD", "MAX_HOLD", "TP_PERCENT", "SL_PERCENT",
 	"PANIC_SL", "MOMENTUM_DROP", "QUOTE_INTERVAL_MS",
+	"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+	"REPORT_EVERY_N_TRADES", "REPORT_INTERVAL_MIN", "REPORT_LOAD_RECENT",
 }
 
 func unsetAll(t *testing.T) {
@@ -79,6 +81,9 @@ func TestLoad_CustomEnv(t *testing.T) {
 	}
 	if cfg.RedisURL != "localhost:6379" {
 		t.Fatalf("RedisURL: got %q", cfg.RedisURL)
+	}
+	if cfg.ReportEveryNTrades != 5 || cfg.ReportIntervalMin != 30 || cfg.ReportMaxTrades != 200 {
+		t.Fatalf("report defaults: %+v", cfg)
 	}
 }
 
@@ -158,6 +163,27 @@ func TestLoad_RecoveryIntervalInvalid(t *testing.T) {
 	t.Setenv("RECOVERY_INTERVAL", "nan")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestLoad_ReportEnv(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("REPORT_EVERY_N_TRADES", "10")
+	t.Setenv("REPORT_INTERVAL_MIN", "15")
+	t.Setenv("REPORT_LOAD_RECENT", "50")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "tok")
+	t.Setenv("TELEGRAM_CHAT_ID", "chat1")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ReportEveryNTrades != 10 || cfg.ReportIntervalMin != 15 || cfg.ReportMaxTrades != 50 {
+		t.Fatalf("%+v", cfg)
+	}
+	if cfg.TelegramBotToken != "tok" || cfg.TelegramChatID != "chat1" {
+		t.Fatal(cfg.TelegramBotToken, cfg.TelegramChatID)
 	}
 }
 

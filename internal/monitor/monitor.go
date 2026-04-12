@@ -8,6 +8,8 @@ import (
 	"rlangga/internal/exit"
 	"rlangga/internal/pnl"
 	"rlangga/internal/quote"
+	"rlangga/internal/report"
+	"rlangga/internal/store"
 )
 
 // MonitorPosition polls quote until adaptive exit triggers, then sells.
@@ -34,7 +36,27 @@ func MonitorPosition(mint string, buySOL float64) {
 		pct := pnl.CalcPnL(buySOL, q)
 
 		if exit.ShouldSellAdaptive(pct, elapsed, state, cfg) {
-			executor.SafeSellWithValidation(mint)
+			if !executor.SafeSellWithValidation(mint) {
+				return
+			}
+			sellSOL := quote.GetSellQuote(mint)
+			ts := time.Now().Unix()
+			pnlSOL := sellSOL - buySOL
+			pctSOL := 0.0
+			if buySOL > 0 {
+				pctSOL = (pnlSOL / buySOL) * 100
+			}
+			dur := int(time.Since(start).Seconds())
+			_ = store.SaveTrade(store.Trade{
+				Mint:        mint,
+				BuySOL:      buySOL,
+				SellSOL:     sellSOL,
+				PnLSOL:      pnlSOL,
+				Percent:     pctSOL,
+				DurationSec: dur,
+				TS:          ts,
+			})
+			_ = report.NotifyTradeSaved()
 			return
 		}
 
