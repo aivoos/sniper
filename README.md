@@ -51,7 +51,9 @@ Detail: [docs/basil-full-stack.md](docs/basil-full-stack.md).
 
 ## Lisensi
 
-Belum ditetapkan — tambahkan berkas `LICENSE` saat tim memilih lisensi.
+**Proprietary — private.** Lihat [LICENSE](LICENSE). Kode dan dokumentasi tidak dibuka untuk penggunaan publik; distribusi atau penyalinan tanpa izin tertulis dilarang.
+
+Di GitHub: set repositori ke **Private** di *Settings → General → Danger zone* jika belum.
 
 ---
 
