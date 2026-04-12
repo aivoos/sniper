@@ -4,7 +4,7 @@
 
 Platform eksekusi terkendali (*governed execution engine*) untuk Solana: worker Go, Redis, validasi RPC, recovery berkelanjutan, guard risiko, dan dokumentasi PR berurutan. Ini **bukan** sekadar bot tanpa aturan — perilaku bisnis dikunci di dokumen.
 
-**Status implementasi:** **PR-001** + **PR-002** + **PR-003** (trade log Redis `trades:list`, agregasi, ringkasan Telegram opsional) + **PR-004** (multi-bot, `BOTS_JSON` / default, orchestrator round-robin). **PR-005+** belum (profit guard). Pump: `buy`/`sell`/`quote` memakai JSON dengan `signature`/`tx`/`sig` atau quote `sol`/`amount` — sesuaikan API nyata.
+**Status implementasi:** **PR-001**–**PR-005** (termasuk profit guard: `CanTrade`, kunci Redis `stats:daily_loss:*` / `stats:daily_trades:*`, kuota BUY, kill switch + alert Telegram opsional; `SaveTrade` mengembalikan `(saved, err)`). Pump: `buy`/`sell`/`quote` memakai JSON dengan `signature`/`tx`/`sig` atau quote `sol`/`amount` — sesuaikan API nyata.
 
 ---
 
