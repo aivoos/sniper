@@ -1,0 +1,74 @@
+package executor
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"rlangga/internal/config"
+)
+
+func TestBuyAndValidate_FallbackAndConfirm(t *testing.T) {
+	pumpFail := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	pumpOK := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/buy" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"signature": "sig-from-api"})
+	}))
+	rpcSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"jsonrpc": "2.0",
+			"result": map[string]interface{}{
+				"value": []interface{}{
+					map[string]interface{}{"confirmationStatus": "confirmed"},
+				},
+			},
+		})
+	}))
+	t.Cleanup(pumpFail.Close)
+	t.Cleanup(pumpOK.Close)
+	t.Cleanup(rpcSrv.Close)
+
+	t.Setenv("PUMPPORTAL_URL", pumpFail.URL)
+	t.Setenv("PUMPAPI_URL", pumpOK.URL)
+	t.Setenv("RPC_URL", rpcSrv.URL)
+	t.Setenv("RPC_STUB", "0")
+	t.Setenv("TIMEOUT_MS", "3000")
+	config.Load()
+
+	if !BuyAndValidate("So11111111111111111111111111111111111111112") {
+		t.Fatal("expected buy success via API fallback + RPC confirm")
+	}
+}
+
+func TestBuyAndValidate_NoURLs(t *testing.T) {
+	t.Setenv("PUMPPORTAL_URL", "")
+	t.Setenv("PUMPAPI_URL", "")
+	t.Setenv("RPC_STUB", "1")
+	config.Load()
+	if BuyAndValidate("mint") {
+		t.Fatal("expected false when pump not configured")
+	}
+}
+
+func TestSafeSellWithValidation_Success(t *testing.T) {
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sell" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"signature": "sell-sig"})
+	}))
+	t.Cleanup(portal.Close)
+	t.Setenv("PUMPPORTAL_URL", portal.URL)
+	t.Setenv("RPC_STUB", "1")
+	config.Load()
+	SafeSellWithValidation("mintZ")
+}

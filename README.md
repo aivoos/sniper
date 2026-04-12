@@ -16,6 +16,7 @@ Platform eksekusi terkendali (*governed execution engine*) untuk Solana: worker 
 | [docs/rlangga-production-hazards-and-fixes.md](docs/rlangga-production-hazards-and-fixes.md) | Race, edge case, perbaikan wajib |
 | [docs/rlangga-repo-structure.md](docs/rlangga-repo-structure.md) | Layout modul Go yang direncanakan |
 | [docs/rlangga-test-standard.md](docs/rlangga-test-standard.md) | Standar tes: unit / simulasi / integrasi, CI, mocking |
+| [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md) | Parity lokal = CI = server; penjelasan GCC / `build-essential` |
 
 ### Roadmap implementasi (PR)
 
@@ -39,6 +40,14 @@ Mulai dari **PR-001**, lalu berurutan; integrasi antar PR dijelaskan di masing-m
 - **Observability:** Telegram (ringkasan / alert)
 
 Detail: [docs/rlangga-full-stack.md](docs/rlangga-full-stack.md).
+
+---
+
+## CI / gate merge
+
+GitHub Actions (`.github/workflows/ci.yml`) menjalankan `gofmt`, `go vet`, `go test -race`, dan ambang coverage. **Sebelum push**, samakan dengan CI: `make ci` (lihat [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md)).
+
+**GCC:** bukan nama orang atau layanan aneh — itu kompiler C standar; dipakai `go test -race` lewat CGO. Di Ubuntu/WSL tanpa gcc: pasang `build-essential` **atau** cukup `make test` tanpa `-race`; di CI Ubuntu sudah ada gcc.
 
 ---
 

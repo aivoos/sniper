@@ -19,6 +19,7 @@
 | [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md) | 12 hazard produksi: race BUY/state, double sell, dust, quote stale, lock TTL, kuota, midnight, RPC, orchestrator, float, balance lag, recovery vs guard |
 | [rlangga-env-contract.md](./rlangga-env-contract.md) | Kontrak semua variabel lingkungan (`.env`) dalam satu tabel |
 | [rlangga-test-standard.md](./rlangga-test-standard.md) | Standar pengujian Google-grade: piramida, determinisme, CI, mocking |
+| [rlangga-dev-parity.md](./rlangga-dev-parity.md) | Parity lokal / CI / server; toolchain (Go, Docker, gcc untuk `-race`) |
 
 ---
 
