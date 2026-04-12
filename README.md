@@ -15,6 +15,7 @@ Platform eksekusi terkendali (*governed execution engine*) untuk Solana: worker 
 | [docs/rlangga-full-stack.md](docs/rlangga-full-stack.md) | Infra → runtime → Redis → layanan eksternal |
 | [docs/rlangga-production-hazards-and-fixes.md](docs/rlangga-production-hazards-and-fixes.md) | Race, edge case, perbaikan wajib |
 | [docs/rlangga-repo-structure.md](docs/rlangga-repo-structure.md) | Layout modul Go yang direncanakan |
+| [docs/rlangga-test-standard.md](docs/rlangga-test-standard.md) | Standar tes: unit / simulasi / integrasi, CI, mocking |
 
 ### Roadmap implementasi (PR)
 

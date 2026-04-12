@@ -18,6 +18,7 @@
 | [rlangga-pr-005-profit-guard.md](./rlangga-pr-005-profit-guard.md) | PR-005: daily loss, kill switch, balance guard, trade gate, alert Telegram, reset |
 | [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md) | 12 hazard produksi: race BUY/state, double sell, dust, quote stale, lock TTL, kuota, midnight, RPC, orchestrator, float, balance lag, recovery vs guard |
 | [rlangga-env-contract.md](./rlangga-env-contract.md) | Kontrak semua variabel lingkungan (`.env`) dalam satu tabel |
+| [rlangga-test-standard.md](./rlangga-test-standard.md) | Standar pengujian Google-grade: piramida, determinisme, CI, mocking |
 
 ---
 
@@ -221,6 +222,8 @@ Urutan setelah gangguan (mis. restart VPS):
 | Unit | Exit + PnL |
 | Simulasi | Kurva pump / skenario |
 | Live | Modal kecil |
+
+Detail wajib (piramida 70/20/10, CI gate, determinisme): [rlangga-test-standard.md](./rlangga-test-standard.md).
 
 ---
 

@@ -314,3 +314,5 @@ Sistem ini diposisikan sebagai **mesin eksekusi real-time + rekonsiliasi**, buka
 *Race condition, quote basi, TTL lock, dan edge waktu: [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md).*
 
 *Variabel lingkungan (satu kontrak): [rlangga-env-contract.md](./rlangga-env-contract.md).*
+
+*Standar pengujian: [rlangga-test-standard.md](./rlangga-test-standard.md).*

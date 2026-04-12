@@ -3,7 +3,7 @@
 **Jenjang dokumen:** level 2 — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
 **Status:** baseline produksi (kerangka modular)
 
-Dokumen ini memetakan layout kode Go (`module rlangga`), titik masuk worker, paket `internal`, kontainer, dan variabel lingkungan. Spesifikasi perilaku bisnis (guard, kuota, jendela waktu) tetap mengacu pada blueprint induk. Arsitektur lapisan penuh (infra → data → observability): [rlangga-full-stack.md](./rlangga-full-stack.md). Hazard produksi (race, edge case): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md). Kontrak variabel lingkungan: [rlangga-env-contract.md](./rlangga-env-contract.md).
+Dokumen ini memetakan layout kode Go (`module rlangga`), titik masuk worker, paket `internal`, kontainer, dan variabel lingkungan. Spesifikasi perilaku bisnis (guard, kuota, jendela waktu) tetap mengacu pada blueprint induk. Arsitektur lapisan penuh (infra → data → observability): [rlangga-full-stack.md](./rlangga-full-stack.md). Hazard produksi (race, edge case): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md). Kontrak variabel lingkungan: [rlangga-env-contract.md](./rlangga-env-contract.md). Standar pengujian: [rlangga-test-standard.md](./rlangga-test-standard.md).
 
 ---
 

@@ -257,6 +257,8 @@ func HandleMint(mint string) {
 | Unit | `CalcPnL`, logika *momentum drop*, pemicu TP/SL/panic |
 | Simulasi | Pump cepat → hold → exit dekat peak; pump lemah → exit cepat; flat → exit waktu |
 
+Standar wajib (piramida, CI, determinisme): [rlangga-test-standard.md](./rlangga-test-standard.md).
+
 ---
 
 ## 13. Definition of done (final)
@@ -289,6 +291,7 @@ func HandleMint(mint string) {
 
 ## Rujukan
 
+- Standar tes: [rlangga-test-standard.md](./rlangga-test-standard.md)  
 - Kontrak env: [rlangga-env-contract.md](./rlangga-env-contract.md)  
 - Hazard produksi (quote stale, double sell, dust): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md)  
 - PR-001: [rlangga-pr-001-core-engine-recovery-validation.md](./rlangga-pr-001-core-engine-recovery-validation.md)  
