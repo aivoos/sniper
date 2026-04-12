@@ -55,6 +55,8 @@ GitHub Actions (`.github/workflows/ci.yml`) menjalankan `gofmt`, `go vet`, `go t
 
 **GCC:** bukan nama orang atau layanan aneh — itu kompiler C standar; dipakai `go test -race` lewat CGO. Di Ubuntu/WSL tanpa gcc: pasang `build-essential` **atau** cukup `make test` tanpa `-race`; di CI Ubuntu sudah ada gcc.
 
+**CI merah tanpa log / ~0 detik / tanpa job:** biasanya bukan gagal tes, tapi runner tidak jalan. Cek: (1) *Settings* → *Actions* → *General* → izin Actions; (2) akun: *Settings* → *Billing* → **Actions** — untuk repo **privat**, pastikan *Spending limit* tidak memblokir (repo publik umumnya gratis); (3) email GitHub sudah diverifikasi; (4) buka run di tab *Actions* — baca banner merah jika ada. Workflow **manual** hanya ada di branch yang sudah memuat `workflow_dispatch` (merge PR CI/CD ke `main` dulu).
+
 ---
 
 ## Menjalankan
