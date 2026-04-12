@@ -1,8 +1,8 @@
 # PR-005 — profit guard
 
 **ID:** PR-005  
-**Jenjang dokumen:** spesifikasi deliverable — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-**Prasyarat:** [PR-003](./basil-pr-003-pnl-validation-analytics.md) (`SaveTrade`, kunci `stats:daily_loss`), [PR-001](./basil-pr-001-core-engine-recovery-validation.md) (recovery / SELL selalu diizinkan)
+**Jenjang dokumen:** spesifikasi deliverable — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+**Prasyarat:** [PR-003](./rlangga-pr-003-pnl-validation-analytics.md) (`SaveTrade`, kunci `stats:daily_loss`), [PR-001](./rlangga-pr-001-core-engine-recovery-validation.md) (recovery / SELL selalu diizinkan)
 
 **Objektif**
 
@@ -52,7 +52,7 @@ Logika guard dipanggil dari **worker** (`HandleMint`) sebelum idempotency/lock B
 
 ## 4. Pelacakan loss harian (Redis)
 
-**Kunci:** `stats:daily_loss` (konsisten dengan [PR-003](./basil-pr-003-pnl-validation-analytics.md)).
+**Kunci:** `stats:daily_loss` (konsisten dengan [PR-003](./rlangga-pr-003-pnl-validation-analytics.md)).
 
 Pembaruan saat trade tertutup rugi — **setelah** `SaveTrade` berhasil, dari nilai PnL trade:
 
@@ -153,7 +153,7 @@ func HandleMint(mint string) {
 }
 ```
 
-Urutan: **guard dulu** → idempotency → lock → … — konsisten dengan [PR-004](./basil-pr-004-multi-bot.md).
+Urutan: **guard dulu** → idempotency → lock → … — konsisten dengan [PR-004](./rlangga-pr-004-multi-bot.md).
 
 ---
 
@@ -165,7 +165,7 @@ Urutan: **guard dulu** → idempotency → lock → … — konsisten dengan [PR
 | Tetap izinkan SELL | Recovery + monitor exit memanggil `SafeSellWithValidation` tanpa cek gate BUY |
 | Sistem tetap jalan | Loop recovery, RPC, logging tetap aktif |
 
-**Invariant:** tidak meninggalkan posisi sengaja terkunci hanya karena guard — penjualan dan recovery tetap jalan ([PR-001](./basil-pr-001-core-engine-recovery-validation.md)).
+**Invariant:** tidak meninggalkan posisi sengaja terkunci hanya karena guard — penjualan dan recovery tetap jalan ([PR-001](./rlangga-pr-001-core-engine-recovery-validation.md)).
 
 ---
 
@@ -175,7 +175,7 @@ Urutan: **guard dulu** → idempotency → lock → … — konsisten dengan [PR
 func SendKillSwitchAlert(loss float64) {
 
     msg := fmt.Sprintf(
-        "BASIL KILL SWITCH\nLoss: %.4f SOL\nTrading stopped",
+        "RLANGGA KILL SWITCH\nLoss: %.4f SOL\nTrading stopped",
         loss,
     )
 
@@ -251,10 +251,10 @@ func ResetDailyLoss() {
 
 ## Rujukan
 
-- Kontrak env (satu tabel): [basil-env-contract.md](./basil-env-contract.md)  
-- Hazard produksi (recovery bypass guard, kuota, midnight window): [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md)  
-- PR-001 (recovery, SELL prioritas): [basil-pr-001-core-engine-recovery-validation.md](./basil-pr-001-core-engine-recovery-validation.md)  
-- PR-003 (`stats:daily_loss`, `SaveTrade`): [basil-pr-003-pnl-validation-analytics.md](./basil-pr-003-pnl-validation-analytics.md)  
-- PR-004 (`HandleMint`): [basil-pr-004-multi-bot.md](./basil-pr-004-multi-bot.md)  
-- Blueprint (dual guard, kuota, jendela waktu): [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-- Stack: [basil-full-stack.md](./basil-full-stack.md)
+- Kontrak env (satu tabel): [rlangga-env-contract.md](./rlangga-env-contract.md)  
+- Hazard produksi (recovery bypass guard, kuota, midnight window): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md)  
+- PR-001 (recovery, SELL prioritas): [rlangga-pr-001-core-engine-recovery-validation.md](./rlangga-pr-001-core-engine-recovery-validation.md)  
+- PR-003 (`stats:daily_loss`, `SaveTrade`): [rlangga-pr-003-pnl-validation-analytics.md](./rlangga-pr-003-pnl-validation-analytics.md)  
+- PR-004 (`HandleMint`): [rlangga-pr-004-multi-bot.md](./rlangga-pr-004-multi-bot.md)  
+- Blueprint (dual guard, kuota, jendela waktu): [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+- Stack: [rlangga-full-stack.md](./rlangga-full-stack.md)

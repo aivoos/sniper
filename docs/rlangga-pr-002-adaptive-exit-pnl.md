@@ -1,8 +1,8 @@
 # PR-002 — adaptive exit + PnL
 
 **ID:** PR-002  
-**Jenjang dokumen:** spesifikasi deliverable — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-**Prasyarat:** [PR-001](./basil-pr-001-core-engine-recovery-validation.md) (eksekusi, recovery, validasi RPC, lock, idempotency)
+**Jenjang dokumen:** spesifikasi deliverable — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+**Prasyarat:** [PR-001](./rlangga-pr-001-core-engine-recovery-validation.md) (eksekusi, recovery, validasi RPC, lock, idempotency)
 
 **Objektif**
 
@@ -225,7 +225,7 @@ func HandleMint(mint string) {
 
 **Lock:** setelah `MonitorPosition` selesai (sell atau return), pastikan **`UnlockMint(mint)`** dipanggil pada semua path agar konsisten dengan PR-001 (dokumen PR-001 menjelaskan kebijakan unlock; implementasi wajib menutup semua cabang).
 
-**Integrasi lanjutan:** cuplikan di atas adalah cakupan PR-002 saja. Untuk **guard** (`CanTrade`), **multi-bot** (`NextBot`, `MonitorPositionWithBot`), dan **trade log** (`SaveTrade`), gabungkan dengan [PR-004](./basil-pr-004-multi-bot.md), [PR-005](./basil-pr-005-profit-guard.md), [PR-003](./basil-pr-003-pnl-validation-analytics.md).
+**Integrasi lanjutan:** cuplikan di atas adalah cakupan PR-002 saja. Untuk **guard** (`CanTrade`), **multi-bot** (`NextBot`, `MonitorPositionWithBot`), dan **trade log** (`SaveTrade`), gabungkan dengan [PR-004](./rlangga-pr-004-multi-bot.md), [PR-005](./rlangga-pr-005-profit-guard.md), [PR-003](./rlangga-pr-003-pnl-validation-analytics.md).
 
 ---
 
@@ -289,10 +289,10 @@ func HandleMint(mint string) {
 
 ## Rujukan
 
-- Kontrak env: [basil-env-contract.md](./basil-env-contract.md)  
-- Hazard produksi (quote stale, double sell, dust): [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md)  
-- PR-001: [basil-pr-001-core-engine-recovery-validation.md](./basil-pr-001-core-engine-recovery-validation.md)  
-- PR-003 (trade log + metrik + Telegram): [basil-pr-003-pnl-validation-analytics.md](./basil-pr-003-pnl-validation-analytics.md)  
-- PR-004 (multi bot + scale): [basil-pr-004-multi-bot.md](./basil-pr-004-multi-bot.md)  
-- Blueprint: [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-- Stack: [basil-full-stack.md](./basil-full-stack.md)
+- Kontrak env: [rlangga-env-contract.md](./rlangga-env-contract.md)  
+- Hazard produksi (quote stale, double sell, dust): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md)  
+- PR-001: [rlangga-pr-001-core-engine-recovery-validation.md](./rlangga-pr-001-core-engine-recovery-validation.md)  
+- PR-003 (trade log + metrik + Telegram): [rlangga-pr-003-pnl-validation-analytics.md](./rlangga-pr-003-pnl-validation-analytics.md)  
+- PR-004 (multi bot + scale): [rlangga-pr-004-multi-bot.md](./rlangga-pr-004-multi-bot.md)  
+- Blueprint: [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+- Stack: [rlangga-full-stack.md](./rlangga-full-stack.md)

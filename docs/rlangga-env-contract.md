@@ -1,6 +1,6 @@
-# Kontrak variabel lingkungan BASIL
+# Kontrak variabel lingkungan RLANGGA
 
-**Jenjang dokumen:** referensi tunggal — menggabungkan konfigurasi yang tersebar di [basil-blueprint-v2.md](./basil-blueprint-v2.md), PR-001–PR-005, [basil-full-stack.md](./basil-full-stack.md), dan [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md).
+**Jenjang dokumen:** referensi tunggal — menggabungkan konfigurasi yang tersebar di [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md), PR-001–PR-005, [rlangga-full-stack.md](./rlangga-full-stack.md), dan [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md).
 
 **Aturan:** nilai di bawah adalah **kontrak nama + makna**; contoh angka bisa disesuaikan deployment. Yang bertanda *opsional* boleh ditunda sampai fitur terkait diimplementasi.
 
@@ -141,7 +141,7 @@ MAX_DAILY_TRADES=50
 
 ## 10. Docker Compose
 
-`environment` pada service `worker` harus memuat minimal set **Wajib** dari §1–5 dan §6 sesuai kebutuhan rilis. Lihat juga [basil-full-stack.md](./basil-full-stack.md) §3.
+`environment` pada service `worker` harus memuat minimal set **Wajib** dari §1–5 dan §6 sesuai kebutuhan rilis. Lihat juga [rlangga-full-stack.md](./rlangga-full-stack.md) §3.
 
 ---
 

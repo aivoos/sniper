@@ -1,7 +1,7 @@
 # PR-001 — core engine + recovery + validation
 
 **ID:** PR-001  
-**Jenjang dokumen:** spesifikasi deliverable — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
+**Jenjang dokumen:** spesifikasi deliverable — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
 **Tujuan:** mesin eksekusi inti yang *resilient* dan *tervalidasi* (bukan adaptive exit penuh; itu PR-002).
 
 ---
@@ -240,7 +240,7 @@ func HandleMint(mint string) {
 
 **TODO PR-002:** ganti `time.Sleep` tetap dengan `monitor` + `exit` adaptif.
 
-**Alur worker kanonik (setelah PR-002–PR-005):** guard → idempotency → lock → orchestrator/bot → buy → monitor adaptif / multi-bot — lihat [PR-002](./basil-pr-002-adaptive-exit-pnl.md), [PR-004](./basil-pr-004-multi-bot.md), [PR-005](./basil-pr-005-profit-guard.md). Cuplikan di atas hanya baseline PR-001.
+**Alur worker kanonik (setelah PR-002–PR-005):** guard → idempotency → lock → orchestrator/bot → buy → monitor adaptif / multi-bot — lihat [PR-002](./rlangga-pr-002-adaptive-exit-pnl.md), [PR-004](./rlangga-pr-004-multi-bot.md), [PR-005](./rlangga-pr-005-profit-guard.md). Cuplikan di atas hanya baseline PR-001.
 
 Pastikan `UnlockMint` dipanggil pada path sukses setelah sell (atau kebijakan lock yang konsisten) agar tidak mengunci mint selamanya.
 
@@ -323,12 +323,12 @@ Lingkungan worker memuat `REDIS_URL` dan variabel di bagian 3.
 
 ## Rujukan
 
-- Kontrak env: [basil-env-contract.md](./basil-env-contract.md)  
-- Hazard produksi (race, recovery, lock, RPC): [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md)  
-- Blueprint governance & guard: [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-- Layout repo & modul: [basil-repo-structure.md](./basil-repo-structure.md)  
-- Stack keseluruhan: [basil-full-stack.md](./basil-full-stack.md)  
-- Lanjutan adaptive exit + PnL: [basil-pr-002-adaptive-exit-pnl.md](./basil-pr-002-adaptive-exit-pnl.md)  
-- Trade store + metrik + laporan: [basil-pr-003-pnl-validation-analytics.md](./basil-pr-003-pnl-validation-analytics.md)  
-- Multi bot + scale: [basil-pr-004-multi-bot.md](./basil-pr-004-multi-bot.md)  
-- Profit guard (daily loss, kill switch): [basil-pr-005-profit-guard.md](./basil-pr-005-profit-guard.md)
+- Kontrak env: [rlangga-env-contract.md](./rlangga-env-contract.md)  
+- Hazard produksi (race, recovery, lock, RPC): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md)  
+- Blueprint governance & guard: [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+- Layout repo & modul: [rlangga-repo-structure.md](./rlangga-repo-structure.md)  
+- Stack keseluruhan: [rlangga-full-stack.md](./rlangga-full-stack.md)  
+- Lanjutan adaptive exit + PnL: [rlangga-pr-002-adaptive-exit-pnl.md](./rlangga-pr-002-adaptive-exit-pnl.md)  
+- Trade store + metrik + laporan: [rlangga-pr-003-pnl-validation-analytics.md](./rlangga-pr-003-pnl-validation-analytics.md)  
+- Multi bot + scale: [rlangga-pr-004-multi-bot.md](./rlangga-pr-004-multi-bot.md)  
+- Profit guard (daily loss, kill switch): [rlangga-pr-005-profit-guard.md](./rlangga-pr-005-profit-guard.md)

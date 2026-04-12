@@ -1,4 +1,4 @@
-# BASIL Blueprint v2
+# RLANGGA Blueprint v2
 
 **Status:** LOCKED — governed system  
 **Versi dokumen:** 2
@@ -9,15 +9,15 @@
 
 | Dokumen | Isi |
 |---------|-----|
-| [basil-repo-structure.md](./basil-repo-structure.md) | Struktur repo `basil/`, `go.mod`, layout `cmd` / `internal`, Docker, dan baseline kode |
-| [basil-full-stack.md](./basil-full-stack.md) | Stack end-to-end: infra, runtime, Redis, layanan eksternal, alur, observability, ops, multi-bot |
-| [basil-pr-001-core-engine-recovery-validation.md](./basil-pr-001-core-engine-recovery-validation.md) | PR-001: eksekusi inti, recovery, validasi RPC, Redis lock/idempotency, DoD |
-| [basil-pr-002-adaptive-exit-pnl.md](./basil-pr-002-adaptive-exit-pnl.md) | PR-002: quote, PnL, adaptive exit, monitor, integrasi worker PR-001 |
-| [basil-pr-003-pnl-validation-analytics.md](./basil-pr-003-pnl-validation-analytics.md) | PR-003: trade store Redis, agregasi, metrik, loss streak, laporan Telegram |
-| [basil-pr-004-multi-bot.md](./basil-pr-004-multi-bot.md) | PR-004: multi worker, BotConfig, orchestrator, lock bersama, exit per bot, scale Docker |
-| [basil-pr-005-profit-guard.md](./basil-pr-005-profit-guard.md) | PR-005: daily loss, kill switch, balance guard, trade gate, alert Telegram, reset |
-| [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md) | 12 hazard produksi: race BUY/state, double sell, dust, quote stale, lock TTL, kuota, midnight, RPC, orchestrator, float, balance lag, recovery vs guard |
-| [basil-env-contract.md](./basil-env-contract.md) | Kontrak semua variabel lingkungan (`.env`) dalam satu tabel |
+| [rlangga-repo-structure.md](./rlangga-repo-structure.md) | Struktur repo `rlangga/`, `go.mod`, layout `cmd` / `internal`, Docker, dan baseline kode |
+| [rlangga-full-stack.md](./rlangga-full-stack.md) | Stack end-to-end: infra, runtime, Redis, layanan eksternal, alur, observability, ops, multi-bot |
+| [rlangga-pr-001-core-engine-recovery-validation.md](./rlangga-pr-001-core-engine-recovery-validation.md) | PR-001: eksekusi inti, recovery, validasi RPC, Redis lock/idempotency, DoD |
+| [rlangga-pr-002-adaptive-exit-pnl.md](./rlangga-pr-002-adaptive-exit-pnl.md) | PR-002: quote, PnL, adaptive exit, monitor, integrasi worker PR-001 |
+| [rlangga-pr-003-pnl-validation-analytics.md](./rlangga-pr-003-pnl-validation-analytics.md) | PR-003: trade store Redis, agregasi, metrik, loss streak, laporan Telegram |
+| [rlangga-pr-004-multi-bot.md](./rlangga-pr-004-multi-bot.md) | PR-004: multi worker, BotConfig, orchestrator, lock bersama, exit per bot, scale Docker |
+| [rlangga-pr-005-profit-guard.md](./rlangga-pr-005-profit-guard.md) | PR-005: daily loss, kill switch, balance guard, trade gate, alert Telegram, reset |
+| [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md) | 12 hazard produksi: race BUY/state, double sell, dust, quote stale, lock TTL, kuota, midnight, RPC, orchestrator, float, balance lag, recovery vs guard |
+| [rlangga-env-contract.md](./rlangga-env-contract.md) | Kontrak semua variabel lingkungan (`.env`) dalam satu tabel |
 
 ---
 
@@ -155,7 +155,7 @@ Sistem direalisasikan sebagai **governed execution engine**: eksekusi, validasi,
 
 ### Continuous loop
 
-- **Interval:** 5–10 detik (rentang desain); di beban RPC tinggi naikkan ke 10–15 detik atau adaptif — lihat [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md) §8  
+- **Interval:** 5–10 detik (rentang desain); di beban RPC tinggi naikkan ke 10–15 detik atau adaptif — lihat [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md) §8  
 - Scan wallet  
 - Jika ada token yang harus dilikuidasi → **SELL paksa** (sesuai aturan produk)  
 

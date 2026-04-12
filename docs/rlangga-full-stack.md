@@ -1,10 +1,10 @@
-# BASIL full stack (final, end-to-end)
+# RLANGGA full stack (final, end-to-end)
 
-**Jenjang dokumen:** level 2 — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
+**Jenjang dokumen:** level 2 — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
 **Cakupan:** infrastruktur → runtime → data → observability → operasi  
 **Status:** spesifikasi platform eksekusi siap produksi (bukan sekadar bot)
 
-Dokumen ini menyatukan lapisan teknis end-to-end. Detail modul kode dan pohon repo ada di [basil-repo-structure.md](./basil-repo-structure.md). Aturan guard, kuota, dan jendela waktu tetap mengacu pada blueprint induk.
+Dokumen ini menyatukan lapisan teknis end-to-end. Detail modul kode dan pohon repo ada di [rlangga-repo-structure.md](./rlangga-repo-structure.md). Aturan guard, kuota, dan jendela waktu tetap mengacu pada blueprint induk.
 
 ---
 
@@ -99,7 +99,7 @@ flowchart TB
 |------------|------------|
 | Lock | Koordinasi posisi / mint |
 | Idempotency | Cegah aksi ganda |
-| State posisi (opsional) | `ACTIVE` / `EXITING` — cegah double sell; urutan BUY vs state — lihat [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md) §1–2 |
+| State posisi (opsional) | `ACTIVE` / `EXITING` — cegah double sell; urutan BUY vs state — lihat [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md) §1–2 |
 | Trade log | Append-only |
 | Statistik | Loss, counter, agregat |
 
@@ -309,8 +309,8 @@ Sistem ini diposisikan sebagai **mesin eksekusi real-time + rekonsiliasi**, buka
 
 ---
 
-*Untuk batasan governance (jam aktif, kuota harian, invariant posisi), gabungkan dokumen ini dengan [basil-blueprint-v2.md](./basil-blueprint-v2.md).*
+*Untuk batasan governance (jam aktif, kuota harian, invariant posisi), gabungkan dokumen ini dengan [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md).*
 
-*Race condition, quote basi, TTL lock, dan edge waktu: [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md).*
+*Race condition, quote basi, TTL lock, dan edge waktu: [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md).*
 
-*Variabel lingkungan (satu kontrak): [basil-env-contract.md](./basil-env-contract.md).*
+*Variabel lingkungan (satu kontrak): [rlangga-env-contract.md](./rlangga-env-contract.md).*

@@ -1,8 +1,8 @@
 # PR-004 — multi bot
 
 **ID:** PR-004  
-**Jenjang dokumen:** spesifikasi deliverable — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-**Prasyarat:** [PR-001](./basil-pr-001-core-engine-recovery-validation.md) (lock Redis global), [PR-002](./basil-pr-002-adaptive-exit-pnl.md) (monitor + adaptive exit)
+**Jenjang dokumen:** spesifikasi deliverable — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+**Prasyarat:** [PR-001](./rlangga-pr-001-core-engine-recovery-validation.md) (lock Redis global), [PR-002](./rlangga-pr-002-adaptive-exit-pnl.md) (monitor + adaptive exit)
 
 **Objektif**
 
@@ -104,7 +104,7 @@ func NextBot() BotConfig {
 
 ## 5. Alur worker (diperbarui)
 
-**PR-005:** gate `guard.CanTrade` di awal (setelah baca saldo). Detail perilaku guard: [basil-pr-005-profit-guard.md](./basil-pr-005-profit-guard.md).
+**PR-005:** gate `guard.CanTrade` di awal (setelah baca saldo). Detail perilaku guard: [rlangga-pr-005-profit-guard.md](./rlangga-pr-005-profit-guard.md).
 
 ```go
 func HandleMint(mint string) {
@@ -243,7 +243,7 @@ log.Info(fmt.Sprintf("[%s] BUY %s", bot.Name, mint))
 log.Info(fmt.Sprintf("[%s] SELL %s PnL %.2f", bot.Name, mint, pnl))
 ```
 
-Untuk [PR-003](./basil-pr-003-pnl-validation-analytics.md), pertimbangkan field `bot_name` pada `Trade` jika metrik per profil diperlukan.
+Untuk [PR-003](./rlangga-pr-003-pnl-validation-analytics.md), pertimbangkan field `bot_name` pada `Trade` jika metrik per profil diperlukan.
 
 ---
 
@@ -325,10 +325,10 @@ Multi bot **tidak** otomatis membuat strategi “lebih pintar”; fungsinya mena
 
 ## Rujukan
 
-- Kontrak env: [basil-env-contract.md](./basil-env-contract.md)  
-- Hazard produksi (orchestrator atomik, lock TTL, RPC recovery): [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md)  
-- PR-001 (lock): [basil-pr-001-core-engine-recovery-validation.md](./basil-pr-001-core-engine-recovery-validation.md)  
-- PR-002 (monitor / exit): [basil-pr-002-adaptive-exit-pnl.md](./basil-pr-002-adaptive-exit-pnl.md)  
-- PR-003 (metrik / trade log): [basil-pr-003-pnl-validation-analytics.md](./basil-pr-003-pnl-validation-analytics.md)  
-- Stack multi-bot: [basil-full-stack.md](./basil-full-stack.md)  
-- Blueprint: [basil-blueprint-v2.md](./basil-blueprint-v2.md)
+- Kontrak env: [rlangga-env-contract.md](./rlangga-env-contract.md)  
+- Hazard produksi (orchestrator atomik, lock TTL, RPC recovery): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md)  
+- PR-001 (lock): [rlangga-pr-001-core-engine-recovery-validation.md](./rlangga-pr-001-core-engine-recovery-validation.md)  
+- PR-002 (monitor / exit): [rlangga-pr-002-adaptive-exit-pnl.md](./rlangga-pr-002-adaptive-exit-pnl.md)  
+- PR-003 (metrik / trade log): [rlangga-pr-003-pnl-validation-analytics.md](./rlangga-pr-003-pnl-validation-analytics.md)  
+- Stack multi-bot: [rlangga-full-stack.md](./rlangga-full-stack.md)  
+- Blueprint: [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)

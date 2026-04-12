@@ -1,6 +1,6 @@
 # Hazard produksi: race, edge case, dan perbaikan wajib
 
-**Jenjang dokumen:** referensi lintas-PR — melengkapi [basil-blueprint-v2.md](./basil-blueprint-v2.md) dan implementasi PR-001–PR-005.
+**Jenjang dokumen:** referensi lintas-PR — melengkapi [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md) dan implementasi PR-001–PR-005.
 
 Dokumen ini mencatat **12 kelas masalah** umum pada sistem eksekusi + recovery + guard. Perilaku yang salah sering muncul hanya di beban nyata, restart, atau RPC lambat.
 
@@ -233,7 +233,7 @@ Guard memblokir “semua” jalur ketika kuota habis atau kill switch — recove
 
 **Perbaikan**
 
-**Recovery mem-bypass guard** untuk path **SELL / likuidasi**. `CanTrade` hanya untuk **BUY / buka posisi baru** (selaras [PR-005](./basil-pr-005-profit-guard.md)).
+**Recovery mem-bypass guard** untuk path **SELL / likuidasi**. `CanTrade` hanya untuk **BUY / buka posisi baru** (selaras [PR-005](./rlangga-pr-005-profit-guard.md)).
 
 ---
 
@@ -258,4 +258,4 @@ Guard memblokir “semua” jalur ketika kuota habis atau kill switch — recove
 
 *Implementasi konkret (nama fungsi, kunci Redis) harus selaras dengan PR terkait; dokumen ini mengunci **kelas bug** dan **pola perbaikan** agar review dan uji regresi tidak melewatkan edge case.*
 
-*Nama env untuk `MIN_DUST`, `QUOTE_MAX_AGE_MS`, `LOCK_TTL_MIN`, dll.: [basil-env-contract.md](./basil-env-contract.md) §7.*
+*Nama env untuk `MIN_DUST`, `QUOTE_MAX_AGE_MS`, `LOCK_TTL_MIN`, dll.: [rlangga-env-contract.md](./rlangga-env-contract.md) §7.*

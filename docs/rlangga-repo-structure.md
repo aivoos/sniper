@@ -1,16 +1,16 @@
-# Struktur repositori BASIL (final)
+# Struktur repositori RLANGGA (final)
 
-**Jenjang dokumen:** level 2 — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
+**Jenjang dokumen:** level 2 — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
 **Status:** baseline produksi (kerangka modular)
 
-Dokumen ini memetakan layout kode Go (`module basil`), titik masuk worker, paket `internal`, kontainer, dan variabel lingkungan. Spesifikasi perilaku bisnis (guard, kuota, jendela waktu) tetap mengacu pada blueprint induk. Arsitektur lapisan penuh (infra → data → observability): [basil-full-stack.md](./basil-full-stack.md). Hazard produksi (race, edge case): [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md). Kontrak variabel lingkungan: [basil-env-contract.md](./basil-env-contract.md).
+Dokumen ini memetakan layout kode Go (`module rlangga`), titik masuk worker, paket `internal`, kontainer, dan variabel lingkungan. Spesifikasi perilaku bisnis (guard, kuota, jendela waktu) tetap mengacu pada blueprint induk. Arsitektur lapisan penuh (infra → data → observability): [rlangga-full-stack.md](./rlangga-full-stack.md). Hazard produksi (race, edge case): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md). Kontrak variabel lingkungan: [rlangga-env-contract.md](./rlangga-env-contract.md).
 
 ---
 
 ## Pohon direktori
 
 ```text
-basil/
+rlangga/
 ├── cmd/
 │   └── worker/
 │       └── main.go
@@ -46,7 +46,7 @@ basil/
 ## `go.mod`
 
 ```go
-module basil
+module rlangga
 
 go 1.22
 
@@ -63,8 +63,8 @@ Titik masuk: inisialisasi aplikasi, recovery saat startup, loop recovery berkela
 package main
 
 import (
-    "basil/internal/app"
-    "basil/internal/recovery"
+    "rlangga/internal/app"
+    "rlangga/internal/recovery"
 )
 
 func main() {
@@ -92,7 +92,7 @@ package app
 import "fmt"
 
 func Init() {
-    fmt.Println("BASIL INIT")
+    fmt.Println("RLANGGA INIT")
 }
 
 func StartWorker() {
@@ -112,7 +112,7 @@ package executor
 
 import (
     "time"
-    "basil/internal/rpc"
+    "rlangga/internal/rpc"
 )
 
 func BuyAndValidate(mint string) bool {
@@ -144,8 +144,8 @@ package recovery
 
 import (
     "time"
-    "basil/internal/rpc"
-    "basil/internal/executor"
+    "rlangga/internal/rpc"
+    "rlangga/internal/executor"
 )
 
 func RecoverAll() {
@@ -277,10 +277,10 @@ package monitor
 
 import (
     "time"
-    "basil/internal/quote"
-    "basil/internal/pnl"
-    "basil/internal/exit"
-    "basil/internal/executor"
+    "rlangga/internal/quote"
+    "rlangga/internal/pnl"
+    "rlangga/internal/exit"
+    "rlangga/internal/executor"
 )
 
 func Monitor(mint string, buy float64) {
@@ -470,7 +470,7 @@ services:
 
 ## `.env`
 
-Daftar lengkap nama variabel dan makna: [basil-env-contract.md](./basil-env-contract.md). Contoh minimal:
+Daftar lengkap nama variabel dan makna: [rlangga-env-contract.md](./rlangga-env-contract.md). Contoh minimal:
 
 ```env
 REDIS_URL=redis:6379
@@ -504,4 +504,4 @@ docker-compose up --build -d
 
 - **`rpc.WaitTxConfirmed`:** isi loop saat ini mengembalikan `true` langsung; sesuaikan dengan polling konfirmasi nyata (dan hilangkan kode tak terjangkau).
 - **`internal/log`:** nama paket `log` bentrok dengan standar library `log` jika diimpor bersamaan; pertimbangkan rename paket ke `logger` atau `applog` saat integrasi penuh.
-- **Blueprint:** guard waktu, kuota harian, daily loss, dan reporting Telegram dijabarkan di [basil-blueprint-v2.md](./basil-blueprint-v2.md); hubungkan `guard`, `report`, dan konfigurasi dari `.env` ke perilaku tersebut.
+- **Blueprint:** guard waktu, kuota harian, daily loss, dan reporting Telegram dijabarkan di [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md); hubungkan `guard`, `report`, dan konfigurasi dari `.env` ke perilaku tersebut.

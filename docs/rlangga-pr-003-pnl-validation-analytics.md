@@ -1,8 +1,8 @@
 # PR-003 — PnL & validasi (data + metrik + laporan)
 
 **ID:** PR-003  
-**Jenjang dokumen:** spesifikasi deliverable — turunan dari [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-**Prasyarat:** [PR-001](./basil-pr-001-core-engine-recovery-validation.md) (sell terkonfirmasi), [PR-002](./basil-pr-002-adaptive-exit-pnl.md) (monitor / quote / durasi posisi)
+**Jenjang dokumen:** spesifikasi deliverable — turunan dari [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+**Prasyarat:** [PR-001](./rlangga-pr-001-core-engine-recovery-validation.md) (sell terkonfirmasi), [PR-002](./rlangga-pr-002-adaptive-exit-pnl.md) (monitor / quote / durasi posisi)
 
 **Objektif**
 
@@ -207,7 +207,7 @@ func LoadRecent(n int64) []Trade {
 func SendSummary(s Stats, streak int) {
 
     msg := fmt.Sprintf(`
-BASIL REPORT
+RLANGGA REPORT
 
 Trades: %d
 Winrate: %.2f%%
@@ -292,11 +292,11 @@ SELL sukses (RPC/executor)
 
 ## Rujukan
 
-- Kontrak env (Telegram / laporan): [basil-env-contract.md](./basil-env-contract.md) §8  
-- Hazard produksi (float loss, kuota): [basil-production-hazards-and-fixes.md](./basil-production-hazards-and-fixes.md)  
-- PR-001: [basil-pr-001-core-engine-recovery-validation.md](./basil-pr-001-core-engine-recovery-validation.md)  
-- PR-002: [basil-pr-002-adaptive-exit-pnl.md](./basil-pr-002-adaptive-exit-pnl.md)  
-- PR-004 (multi bot, log per bot): [basil-pr-004-multi-bot.md](./basil-pr-004-multi-bot.md)  
-- PR-005 (profit guard, `stats:daily_loss`): [basil-pr-005-profit-guard.md](./basil-pr-005-profit-guard.md)  
-- Blueprint: [basil-blueprint-v2.md](./basil-blueprint-v2.md)  
-- Stack: [basil-full-stack.md](./basil-full-stack.md)
+- Kontrak env (Telegram / laporan): [rlangga-env-contract.md](./rlangga-env-contract.md) §8  
+- Hazard produksi (float loss, kuota): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md)  
+- PR-001: [rlangga-pr-001-core-engine-recovery-validation.md](./rlangga-pr-001-core-engine-recovery-validation.md)  
+- PR-002: [rlangga-pr-002-adaptive-exit-pnl.md](./rlangga-pr-002-adaptive-exit-pnl.md)  
+- PR-004 (multi bot, log per bot): [rlangga-pr-004-multi-bot.md](./rlangga-pr-004-multi-bot.md)  
+- PR-005 (profit guard, `stats:daily_loss`): [rlangga-pr-005-profit-guard.md](./rlangga-pr-005-profit-guard.md)  
+- Blueprint: [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md)  
+- Stack: [rlangga-full-stack.md](./rlangga-full-stack.md)
