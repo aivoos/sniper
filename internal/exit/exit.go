@@ -1,6 +1,9 @@
 package exit
 
-import "rlangga/internal/config"
+import (
+	"rlangga/internal/bot"
+	"rlangga/internal/config"
+)
 
 // PositionState tracks peak PnL for momentum exit.
 type PositionState struct {
@@ -8,9 +11,17 @@ type PositionState struct {
 	PeakPnL float64
 }
 
-// ShouldSellAdaptive implements PR-002 exit engine (exit = pnl + momentum + time).
+// ShouldSellAdaptive implements PR-002 exit engine using global config as one profile.
 func ShouldSellAdaptive(pnl float64, elapsed int, state *PositionState, cfg *config.Config) bool {
 	if cfg == nil || state == nil {
+		return false
+	}
+	return ShouldSellAdaptiveBot(pnl, elapsed, state, bot.FromConfig(cfg))
+}
+
+// ShouldSellAdaptiveBot is PR-002 exit rules with thresholds from a bot profile (PR-004).
+func ShouldSellAdaptiveBot(pnl float64, elapsed int, state *PositionState, b bot.BotConfig) bool {
+	if state == nil {
 		return false
 	}
 
@@ -18,28 +29,28 @@ func ShouldSellAdaptive(pnl float64, elapsed int, state *PositionState, cfg *con
 		state.PeakPnL = pnl
 	}
 
-	if pnl <= -cfg.PanicSL {
+	if pnl <= -b.PanicLoss {
 		return true
 	}
 
-	if elapsed < cfg.GraceSeconds {
-		return pnl >= cfg.TakeProfit
+	if elapsed < b.GraceSeconds {
+		return pnl >= b.TakeProfit
 	}
 
-	if pnl <= -cfg.StopLoss {
+	if pnl <= -b.StopLoss {
 		return true
 	}
 
-	if pnl >= cfg.TakeProfit && elapsed >= cfg.MinHold {
+	if pnl >= b.TakeProfit && elapsed >= b.MinHold {
 		return true
 	}
 
 	drop := state.PeakPnL - pnl
-	if drop >= cfg.MomentumDrop {
+	if drop >= b.MomentumDrop {
 		return true
 	}
 
-	if elapsed >= cfg.MaxHold {
+	if elapsed >= b.MaxHold {
 		return true
 	}
 

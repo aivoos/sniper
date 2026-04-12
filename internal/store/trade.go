@@ -18,6 +18,7 @@ const (
 // Trade is one closed position (append-only log, PR-003).
 type Trade struct {
 	Mint        string  `json:"mint"`
+	BotName     string  `json:"bot_name,omitempty"`
 	BuySOL      float64 `json:"buy_sol"`
 	SellSOL     float64 `json:"sell_sol"`
 	PnLSOL      float64 `json:"pnl_sol"`

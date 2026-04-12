@@ -6,6 +6,7 @@ import (
 
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
+	"rlangga/internal/orchestrator"
 	"rlangga/internal/quote"
 	"rlangga/internal/redisx"
 	"rlangga/internal/report"
@@ -35,8 +36,10 @@ func RecoverAll() {
 		if buySOL > 0 {
 			pct = (pnlSOL / buySOL) * 100
 		}
+		rb := orchestrator.RecoveryBot()
 		_ = store.SaveTrade(store.Trade{
 			Mint:        t.Mint,
+			BotName:     rb.Name,
 			BuySOL:      buySOL,
 			SellSOL:     sellSOL,
 			PnLSOL:      pnlSOL,
