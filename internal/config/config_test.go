@@ -14,6 +14,7 @@ var envKeys = []string{
 	"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
 	"REPORT_EVERY_N_TRADES", "REPORT_INTERVAL_MIN", "REPORT_LOAD_RECENT",
 	"BOTS_JSON",
+	"MAX_DAILY_LOSS", "MIN_BALANCE", "ENABLE_TRADING", "MAX_DAILY_TRADES",
 }
 
 func unsetAll(t *testing.T) {
@@ -185,6 +186,47 @@ func TestLoad_ReportEnv(t *testing.T) {
 	}
 	if cfg.TelegramBotToken != "tok" || cfg.TelegramChatID != "chat1" {
 		t.Fatal(cfg.TelegramBotToken, cfg.TelegramChatID)
+	}
+}
+
+func TestLoad_GuardDefaults(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxDailyLoss != 0 || cfg.MinBalance != 0 || !cfg.EnableTrading || cfg.MaxDailyTrades != 0 {
+		t.Fatalf("%+v", cfg)
+	}
+}
+
+func TestLoad_EnableTradingTrueAliases(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("ENABLE_TRADING", "yes")
+	cfg, err := Load()
+	if err != nil || !cfg.EnableTrading {
+		t.Fatalf("%v %+v", err, cfg)
+	}
+}
+
+func TestLoad_GuardCustom(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MAX_DAILY_LOSS", "1.5")
+	t.Setenv("MIN_BALANCE", "0.05")
+	t.Setenv("ENABLE_TRADING", "false")
+	t.Setenv("MAX_DAILY_TRADES", "10")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxDailyLoss != 1.5 || cfg.MinBalance != 0.05 || cfg.EnableTrading || cfg.MaxDailyTrades != 10 {
+		t.Fatalf("%+v", cfg)
 	}
 }
 

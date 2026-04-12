@@ -46,6 +46,66 @@ func TestSendSummary_NoTelegram(t *testing.T) {
 	}
 }
 
+func TestSendPlainMessage_NoTelegram(t *testing.T) {
+	if err := SendPlainMessage("x"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSendPlainMessage_NilConfig(t *testing.T) {
+	prev := config.C
+	config.C = nil
+	t.Cleanup(func() { config.C = prev })
+	if err := SendPlainMessage("x"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSendPlainMessage_HTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+	restore := SetTelegramAPIBase(srv.URL)
+	t.Cleanup(restore)
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "T")
+	t.Setenv("TELEGRAM_CHAT_ID", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := SendPlainMessage("e"); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestSendPlainMessage_MockTelegram(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(srv.Close)
+	restore := SetTelegramAPIBase(srv.URL)
+	t.Cleanup(restore)
+
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "T")
+	t.Setenv("TELEGRAM_CHAT_ID", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := SendPlainMessage("alert"); err != nil {
+		t.Fatal(err)
+	}
+	if hits != 1 {
+		t.Fatalf("hits=%d", hits)
+	}
+}
+
 func TestSendSummary_MockTelegram(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
@@ -54,9 +114,8 @@ func TestSendSummary_MockTelegram(t *testing.T) {
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	t.Cleanup(srv.Close)
-	old := telegramAPIBase
-	telegramAPIBase = srv.URL
-	t.Cleanup(func() { telegramAPIBase = old })
+	restore := SetTelegramAPIBase(srv.URL)
+	t.Cleanup(restore)
 
 	t.Setenv("RPC_STUB", "1")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "TEST")
@@ -74,9 +133,8 @@ func TestSendSummary_HTTPError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(srv.Close)
-	old := telegramAPIBase
-	telegramAPIBase = srv.URL
-	t.Cleanup(func() { telegramAPIBase = old })
+	restore := SetTelegramAPIBase(srv.URL)
+	t.Cleanup(restore)
 
 	t.Setenv("RPC_STUB", "1")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "T")
@@ -94,9 +152,8 @@ func TestNotifyTradeSaved_SendFailsNoReset(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(bad.Close)
-	old := telegramAPIBase
-	telegramAPIBase = bad.URL
-	t.Cleanup(func() { telegramAPIBase = old })
+	restore := SetTelegramAPIBase(bad.URL)
+	t.Cleanup(restore)
 
 	testutil.UseMiniredis(t)
 	t.Setenv("RPC_STUB", "1")
@@ -109,7 +166,7 @@ func TestNotifyTradeSaved_SendFailsNoReset(t *testing.T) {
 	}
 	_ = redisx.Client.FlushDB(context.Background()).Err()
 	tr := store.Trade{Mint: "m", BuySOL: 0.1, SellSOL: 0.1, PnLSOL: 0, Percent: 0, DurationSec: 1, TS: 7}
-	if err := store.SaveTrade(tr); err != nil {
+	if _, err := store.SaveTrade(tr); err != nil {
 		t.Fatal(err)
 	}
 	if err := NotifyTradeSaved(); err == nil {
@@ -135,7 +192,7 @@ func TestNotifyTradeSaved_IntervalTrigger(t *testing.T) {
 	_ = redisx.Client.Set(ctx, keyReportLastSent, past, 0).Err()
 	_ = redisx.Client.Set(ctx, keyReportCount, "0", 0).Err()
 	tr := store.Trade{Mint: "m", BuySOL: 0.1, SellSOL: 0.1, PnLSOL: 0, Percent: 0, DurationSec: 1, TS: 99}
-	if err := store.SaveTrade(tr); err != nil {
+	if _, err := store.SaveTrade(tr); err != nil {
 		t.Fatal(err)
 	}
 	if err := NotifyTradeSaved(); err != nil {
@@ -153,7 +210,7 @@ func TestNotifyTradeSaved_EveryNTriggers(t *testing.T) {
 	}
 	_ = redisx.Client.FlushDB(context.Background()).Err()
 	tr := store.Trade{Mint: "m", BuySOL: 0.1, SellSOL: 0.1, PnLSOL: 0, Percent: 0, DurationSec: 1, TS: 42}
-	if err := store.SaveTrade(tr); err != nil {
+	if _, err := store.SaveTrade(tr); err != nil {
 		t.Fatal(err)
 	}
 	if err := NotifyTradeSaved(); err != nil {

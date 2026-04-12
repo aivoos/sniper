@@ -8,6 +8,7 @@ import (
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
 	"rlangga/internal/exit"
+	"rlangga/internal/guard"
 	"rlangga/internal/log"
 	"rlangga/internal/pnl"
 	"rlangga/internal/quote"
@@ -60,7 +61,7 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
 				pctSOL = (pnlSOL / buySOL) * 100
 			}
 			dur := int(time.Since(start).Seconds())
-			_ = store.SaveTrade(store.Trade{
+			saved, err := store.SaveTrade(store.Trade{
 				Mint:        mint,
 				BotName:     b.Name,
 				BuySOL:      buySOL,
@@ -70,6 +71,9 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
 				DurationSec: dur,
 				TS:          ts,
 			})
+			if err == nil && saved {
+				_ = guard.UpdateDailyLoss(pnlSOL)
+			}
 			_ = report.NotifyTradeSaved()
 			return
 		}

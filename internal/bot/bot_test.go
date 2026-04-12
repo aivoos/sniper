@@ -3,7 +3,26 @@ package bot
 import (
 	"os"
 	"testing"
+
+	"rlangga/internal/config"
 )
+
+func TestFromConfig_Nil(t *testing.T) {
+	b := FromConfig(nil)
+	if b.Name != "default" {
+		t.Fatal(b.Name)
+	}
+}
+
+func TestFromConfig_Full(t *testing.T) {
+	c := &config.Config{
+		MinHold: 5, MaxHold: 10, TakeProfit: 7, StopLoss: 4, PanicSL: 9, MomentumDrop: 2, GraceSeconds: 3,
+	}
+	b := FromConfig(c)
+	if b.Name != "default" || b.MinHold != 5 || b.PanicLoss != 9 || b.GraceSeconds != 3 {
+		t.Fatalf("%+v", b)
+	}
+}
 
 func TestLoadBots_DefaultWhenEmpty(t *testing.T) {
 	t.Cleanup(func() { _ = os.Unsetenv("BOTS_JSON") })

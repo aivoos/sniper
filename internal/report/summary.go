@@ -25,6 +25,13 @@ const (
 // telegramAPIBase is the API root (override in tests).
 var telegramAPIBase = "https://api.telegram.org"
 
+// SetTelegramAPIBase mengganti root API Telegram (utama untuk tes).
+func SetTelegramAPIBase(base string) (restore func()) {
+	prev := telegramAPIBase
+	telegramAPIBase = base
+	return func() { telegramAPIBase = prev }
+}
+
 // SendSummary formats stats and sends to Telegram when bot token and chat ID are set (PR-003).
 func SendSummary(s aggregate.Stats, streak int) error {
 	cfg := config.C
@@ -47,6 +54,35 @@ Loss Streak: %d
 	body, _ := json.Marshal(map[string]string{
 		"chat_id": cfg.TelegramChatID,
 		"text":    msg,
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("telegram: HTTP %s", resp.Status)
+	}
+	return nil
+}
+
+// SendPlainMessage mengirim satu teks ke Telegram jika token & chat terkonfigurasi (PR-005 alert, dll.).
+func SendPlainMessage(text string) error {
+	cfg := config.C
+	if cfg == nil || cfg.TelegramBotToken == "" || cfg.TelegramChatID == "" {
+		return nil
+	}
+	u := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, cfg.TelegramBotToken)
+	body, _ := json.Marshal(map[string]string{
+		"chat_id": cfg.TelegramChatID,
+		"text":    text,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()

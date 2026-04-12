@@ -28,13 +28,14 @@ type Trade struct {
 }
 
 // SaveTrade appends a trade to Redis (LPUSH). Duplicate identical payloads are ignored (SETNX on content hash).
-func SaveTrade(t Trade) error {
+// saved is false when dedupe skipped append (same payload hash as a prior save).
+func SaveTrade(t Trade) (saved bool, err error) {
 	if redisx.Client == nil {
-		return fmt.Errorf("store: redis not initialized")
+		return false, fmt.Errorf("store: redis not initialized")
 	}
 	raw, err := json.Marshal(t)
 	if err != nil {
-		return err
+		return false, err
 	}
 	sum := sha256.Sum256(raw)
 	dedupeKey := prefixDedupe + fmt.Sprintf("%x", sum[:])
@@ -42,12 +43,15 @@ func SaveTrade(t Trade) error {
 	ctx := context.Background()
 	ok, err := redisx.Client.SetNX(ctx, dedupeKey, "1", 7*24*time.Hour).Result()
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !ok {
-		return nil
+		return false, nil
 	}
-	return redisx.Client.LPush(ctx, keyTradesList, string(raw)).Err()
+	if err := redisx.Client.LPush(ctx, keyTradesList, string(raw)).Err(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // LoadRecent returns up to n newest trades (LPUSH order: index 0 = newest).

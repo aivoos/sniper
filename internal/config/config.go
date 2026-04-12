@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -42,6 +43,12 @@ type Config struct {
 	ReportEveryNTrades int    `validate:"gte=0"`
 	ReportIntervalMin  int    `validate:"gte=0"`
 	ReportMaxTrades    int    `validate:"gte=0"`
+
+	// PR-005 profit guard (BUY gate; 0 = nonaktif untuk limit tertentu)
+	MaxDailyLoss   float64 `validate:"gte=0"`
+	MinBalance     float64 `validate:"gte=0"`
+	EnableTrading  bool
+	MaxDailyTrades int `validate:"gte=0"`
 }
 
 // Load reads configuration from the environment, validates struct tags, then applies runtime guards.
@@ -120,6 +127,19 @@ func parseEnv() (*Config, error) {
 		return nil, err
 	}
 
+	maxDailyLoss, err := floatFromEnv("MAX_DAILY_LOSS", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	minBal, err := floatFromEnv("MIN_BALANCE", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	maxTrades, err := intFromEnv("MAX_DAILY_TRADES", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	stub := os.Getenv("RPC_STUB") == "1" || os.Getenv("RPC_STUB") == "true"
 
 	c := &Config{
@@ -144,8 +164,26 @@ func parseEnv() (*Config, error) {
 		ReportEveryNTrades: reportN,
 		ReportIntervalMin:  reportMin,
 		ReportMaxTrades:    reportMax,
+		MaxDailyLoss:       maxDailyLoss,
+		MinBalance:         minBal,
+		EnableTrading:      parseEnableTrading(true),
+		MaxDailyTrades:     maxTrades,
 	}
 	return c, nil
+}
+
+func parseEnableTrading(def bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("ENABLE_TRADING")))
+	if v == "" {
+		return def
+	}
+	if v == "0" || v == "false" || v == "no" || v == "off" {
+		return false
+	}
+	if v == "1" || v == "true" || v == "yes" || v == "on" {
+		return true
+	}
+	return def
 }
 
 // intFromEnv parses int; empty → default; min is minimum allowed (inclusive).

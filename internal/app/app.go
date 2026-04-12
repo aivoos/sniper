@@ -7,12 +7,14 @@ import (
 	"rlangga/internal/bot"
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
+	"rlangga/internal/guard"
 	"rlangga/internal/idempotency"
 	"rlangga/internal/lock"
 	"rlangga/internal/log"
 	"rlangga/internal/monitor"
 	"rlangga/internal/orchestrator"
 	"rlangga/internal/redisx"
+	"rlangga/internal/wallet"
 )
 
 // Init loads config, connects Redis, and installs multi-bot profiles (PR-004).
@@ -36,8 +38,13 @@ func Init() error {
 	return nil
 }
 
-// HandleMint: PR-002 adaptive monitor after successful buy (PR-001 execution path).
+// HandleMint: PR-005 gate → idempotency → lock → buy → adaptive monitor (PR-002).
 func HandleMint(mint string) {
+	bal := wallet.GetSOLBalance()
+	if !guard.CanTrade(bal) {
+		log.Info("TRADE BLOCKED")
+		return
+	}
 	if idempotency.IsDuplicate(mint) {
 		return
 	}
@@ -50,6 +57,9 @@ func HandleMint(mint string) {
 	if !success {
 		lock.UnlockMint(mint)
 		return
+	}
+	if err := guard.IncrDailyTradeCount(); err != nil {
+		log.Info("guard: IncrDailyTradeCount: " + err.Error())
 	}
 	buySOL := config.C.TradeSize
 	monitor.MonitorPositionWithBot(mint, buySOL, b)
