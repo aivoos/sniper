@@ -8,9 +8,12 @@ fmt:
 vet:
 	go vet ./...
 
+# Sama seperti CI: hanya ./internal/... (tanpa cmd/worker) + ambang coverage 90%%.
 test:
-	go test ./... -count=1 -coverprofile=coverage.out -covermode=atomic
-	go tool cover -func=coverage.out | grep '^total:'
+	go test ./internal/... -count=1 -coverprofile=coverage.out -covermode=atomic
+	@pct=$$(go tool cover -func=coverage.out | grep '^total:' | awk '{gsub(/%/,"",$$3); print $$3}'); \
+	echo "total coverage: $${pct}% (min 90%)"; \
+	awk -v p="$$pct" -v m=90 'BEGIN { exit !(p+0 >= m+0) }' || { echo "coverage below 90%"; exit 1; }
 
 # CI di GitHub memakai ubuntu (gcc tersedia) sehingga -race bisa dipakai.
 # Lokal tanpa gcc: jalankan `make test` saja, atau: apt install build-essential
@@ -18,4 +21,4 @@ ci: fmt vet test
 	@echo "OK — mirror what CI runs (see also: go test -race if you have gcc)"
 
 race:
-	CGO_ENABLED=1 go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic
+	CGO_ENABLED=1 go test ./internal/... -count=1 -race -coverprofile=coverage.out -covermode=atomic

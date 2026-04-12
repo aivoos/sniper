@@ -23,7 +23,12 @@ func unsetAll(t *testing.T) {
 func TestLoad_Defaults(t *testing.T) {
 	unsetAll(t)
 	t.Cleanup(func() { unsetAll(t) })
-	cfg := Load()
+	// Dummy URL so runtime guard passes with default RPC_STUB=off
+	t.Setenv("RPC_URL", "http://127.0.0.1:9")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.TimeoutMS != 1500 {
 		t.Fatalf("TimeoutMS: got %d", cfg.TimeoutMS)
 	}
@@ -56,7 +61,10 @@ func TestLoad_CustomEnv(t *testing.T) {
 	t.Setenv("RPC_STUB", "1")
 	t.Setenv("REDIS_URL", "localhost:6379")
 
-	cfg := Load()
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.TimeoutMS != 3000 {
 		t.Fatalf("TimeoutMS: got %d", cfg.TimeoutMS)
 	}
@@ -71,5 +79,94 @@ func TestLoad_CustomEnv(t *testing.T) {
 	}
 	if cfg.RedisURL != "localhost:6379" {
 		t.Fatalf("RedisURL: got %q", cfg.RedisURL)
+	}
+}
+
+func TestLoad_RuntimeGuard_MinHoldMaxHold(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MIN_HOLD", "20")
+	t.Setenv("MAX_HOLD", "10")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error when MIN_HOLD > MAX_HOLD")
+	}
+}
+
+func TestLoad_InvalidInt(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TIMEOUT_MS", "notint")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLoad_InvalidFloat(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TRADE_SIZE", "x")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLoad_InvalidURL(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("RPC_URL", "not-a-url")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected validate error on RPC_URL")
+	}
+}
+
+func TestLoad_IntBelowMin(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TIMEOUT_MS", "0")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error for TIMEOUT_MS < 1")
+	}
+}
+
+func TestLoad_TradeSizeInvalid(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TRADE_SIZE", "0")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error for TRADE_SIZE <= 0")
+	}
+}
+
+func TestLoad_RPCURLRequiredWhenLiveRPC(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error without RPC_URL when RPC_STUB off")
+	}
+}
+
+func TestLoad_RecoveryIntervalInvalid(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("RECOVERY_INTERVAL", "nan")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLoad_FloatNegative(t *testing.T) {
+	unsetAll(t)
+	t.Cleanup(func() { unsetAll(t) })
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TP_PERCENT", "-1")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error for negative TP_PERCENT")
 	}
 }

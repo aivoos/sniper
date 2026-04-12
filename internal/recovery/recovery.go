@@ -1,6 +1,7 @@
 package recovery
 
 import (
+	"context"
 	"time"
 
 	"rlangga/internal/config"
@@ -20,12 +21,20 @@ func RecoverAll() {
 
 // StartLoop runs RecoverAll forever with RECOVERY_INTERVAL between iterations.
 func StartLoop() {
+	startLoop(context.Background())
+}
+
+func startLoop(ctx context.Context) {
 	interval := 10 * time.Second
 	if config.C != nil && config.C.RecoveryInterval > 0 {
 		interval = config.C.RecoveryInterval
 	}
 	for {
 		RecoverAll()
-		time.Sleep(interval)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(interval):
+		}
 	}
 }

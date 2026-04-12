@@ -80,8 +80,14 @@ func getTxStatus(sig string) string {
 	return st
 }
 
+// WalletTokensHook is set by tests to simulate holdings; nil uses default stub behavior.
+var WalletTokensHook func() []Token
+
 // GetWalletTokens returns SPL token accounts for the trading wallet (stub: empty until wired).
 func GetWalletTokens() []Token {
+	if WalletTokensHook != nil {
+		return WalletTokensHook()
+	}
 	// TODO: RPC getTokenAccountsByOwner + parse; PR-001 returns empty so recovery is no-op without keys.
 	return []Token{}
 }

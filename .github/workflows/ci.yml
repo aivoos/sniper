@@ -39,11 +39,11 @@ jobs:
 
       - name: Test + coverage (race: ubuntu has gcc)
         run: |
-          CGO_ENABLED=1 go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic
+          CGO_ENABLED=1 go test ./internal/... -count=1 -race -coverprofile=coverage.out -covermode=atomic
 
       - name: Coverage floor (adjust COVERAGE_MIN in repo if needed)
         env:
-          COVERAGE_MIN: "55"
+          COVERAGE_MIN: "90"
         run: |
           pct=$(go tool cover -func=coverage.out | grep '^total:' | awk '{gsub(/%/,"",$3); print $3}')
           echo "total coverage: ${pct}% (min ${COVERAGE_MIN}%)"

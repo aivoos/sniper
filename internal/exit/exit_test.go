@@ -49,3 +49,37 @@ func TestShouldSellAdaptive_MaxHold(t *testing.T) {
 		t.Fatal("max hold 0 should exit when grace disabled")
 	}
 }
+
+func TestShouldSellAdaptive_NilCfg(t *testing.T) {
+	if ShouldSellAdaptive(1, 1, &PositionState{}, nil) {
+		t.Fatal("nil cfg")
+	}
+}
+
+func TestShouldSellAdaptive_NilState(t *testing.T) {
+	if ShouldSellAdaptive(1, 1, nil, cfgExit()) {
+		t.Fatal("nil state")
+	}
+}
+
+func TestShouldSellAdaptive_StopLossAfterGrace(t *testing.T) {
+	st := &PositionState{}
+	if !ShouldSellAdaptive(-6, 5, st, cfgExit()) {
+		t.Fatal("stop loss after grace")
+	}
+}
+
+func TestShouldSellAdaptive_TPAfterMinHold(t *testing.T) {
+	st := &PositionState{}
+	if !ShouldSellAdaptive(8, 6, st, cfgExit()) {
+		t.Fatal("take profit when elapsed >= min hold")
+	}
+}
+
+func TestShouldSellAdaptive_PeakTracking(t *testing.T) {
+	st := &PositionState{}
+	_ = ShouldSellAdaptive(5, 10, st, cfgExit())
+	if st.PeakPnL != 5 {
+		t.Fatalf("peak: %v", st.PeakPnL)
+	}
+}
