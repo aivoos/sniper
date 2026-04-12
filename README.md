@@ -2,7 +2,7 @@
 
 Platform eksekusi terkendali (*governed execution engine*) untuk Solana: worker Go, Redis, validasi RPC, recovery berkelanjutan, guard risiko, dan dokumentasi PR berurutan. Ini **bukan** sekadar bot tanpa aturan — perilaku bisnis dikunci di dokumen.
 
-**Status repositori:** spesifikasi dan kontrak lingkungan **siap implementasi**; kode aplikasi Go mengikuti roadmap PR (belum ada di repo ini).
+**Status implementasi:** **PR-001** (inti) ada di repo: `cmd/worker`, Redis lock/idempotency, recovery loop, RPC `getSignatureStatuses`, executor HTTP stub untuk Pump URL. PR-002+ belum (monitor adaptif, guard, trade log, multi-bot). Pump API harus mengembalikan JSON dengan field `signature` / `tx` / `sig` — sesuaikan dengan API nyata.
 
 ---
 
@@ -41,11 +41,22 @@ Detail: [docs/rlangga-full-stack.md](docs/rlangga-full-stack.md).
 
 ---
 
-## Setelah kode ada (ringkas)
+## Menjalankan
 
-1. Salin dan isi variabel sesuai [docs/rlangga-env-contract.md](docs/rlangga-env-contract.md).  
-2. `docker compose up --build` (atau jalankan `cmd/worker` sesuai [docs/rlangga-repo-structure.md](docs/rlangga-repo-structure.md)).  
-3. Uji skenario di bagian *Definition of done* tiap PR.
+```bash
+# Lokal (butuh Redis, mis. docker run -d -p 6379:6379 redis:7)
+export REDIS_URL=127.0.0.1:6379
+export RPC_STUB=1
+go run ./cmd/worker
+```
+
+```bash
+# Docker Compose (set `RPC_STUB=1` di compose untuk dry-run tanpa pump/RPC nyata)
+docker compose up --build
+```
+
+1. Salin [`.env.example`](.env.example) → `.env` dan isi sesuai [docs/rlangga-env-contract.md](docs/rlangga-env-contract.md).  
+2. Uji skenario *Definition of done* di [PR-001](docs/rlangga-pr-001-core-engine-recovery-validation.md) lalu lanjut PR berikutnya.
 
 ---
 

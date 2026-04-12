@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  worker:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis:6379
+      # Set 0 in production when RPC_URL and pump URLs are real
+      RPC_STUB: "1"
