@@ -1,5 +1,7 @@
 # Sniper (RLANGGA)
 
+[![CI](https://github.com/aivoos/sniper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aivoos/sniper/actions/workflows/ci.yml)
+
 Platform eksekusi terkendali (*governed execution engine*) untuk Solana: worker Go, Redis, validasi RPC, recovery berkelanjutan, guard risiko, dan dokumentasi PR berurutan. Ini **bukan** sekadar bot tanpa aturan — perilaku bisnis dikunci di dokumen.
 
 **Status implementasi:** **PR-001** (inti) + **PR-002** (adaptive exit): `internal/pnl`, `exit`, `quote`, `monitor`; `HandleMint` memantau quote lalu `ShouldSellAdaptive` → sell. **PR-003+** belum (trade log Redis, guard, multi-bot). Pump: `buy`/`sell`/`quote` memakai JSON dengan `signature`/`tx`/`sig` atau quote `sol`/`amount` — sesuaikan API nyata.
@@ -45,7 +47,11 @@ Detail: [docs/rlangga-full-stack.md](docs/rlangga-full-stack.md).
 
 ## CI / gate merge
 
-GitHub Actions (`.github/workflows/ci.yml`) menjalankan `gofmt`, `go vet`, `go test -race`, dan ambang coverage. **Sebelum push**, samakan dengan CI: `make ci` (lihat [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md)).
+GitHub Actions (`.github/workflows/ci.yml`) menjalankan `gofmt`, `go vet`, `go test -race`, dan ambang coverage. Workflow **CI** dan **CD** bisa dijalankan manual dari tab *Actions* → pilih workflow → *Run workflow*. **Sebelum push**, samakan dengan CI: `make ci` (lihat [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md)).
+
+**Mengaktifkan Actions di repo:** *Settings* → *Actions* → *General* → *Actions permissions* → **Allow all actions and reusable workflows** (atau batasi sesuai kebijakan organisasi). Tanpa ini, workflow tidak jalan.
+
+**CD (image):** `.github/workflows/cd.yml` membangun `Dockerfile` dan mendorong tag `latest` ke **GHCR** (`ghcr.io/<owner>/sniper`) pada push ke `main` yang mengubah kode Go/Dockerfile (atau lewat *workflow_dispatch*). Paket image muncul di *Packages* repositori; tarik dengan `docker pull ghcr.io/<owner>/sniper:latest` (login GHCR jika repo privat).
 
 **GCC:** bukan nama orang atau layanan aneh — itu kompiler C standar; dipakai `go test -race` lewat CGO. Di Ubuntu/WSL tanpa gcc: pasang `build-essential` **atau** cukup `make test` tanpa `-race`; di CI Ubuntu sudah ada gcc.
 
