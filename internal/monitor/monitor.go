@@ -9,10 +9,13 @@ import (
 	"rlangga/internal/executor"
 	"rlangga/internal/exit"
 	"rlangga/internal/guard"
+	"rlangga/internal/lock"
 	"rlangga/internal/log"
 	"rlangga/internal/pnl"
+	"rlangga/internal/pumpws"
 	"rlangga/internal/quote"
 	"rlangga/internal/report"
+	"rlangga/internal/sellguard"
 	"rlangga/internal/store"
 )
 
@@ -22,15 +25,19 @@ func MonitorPosition(mint string, buySOL float64) {
 	if cfg == nil {
 		return
 	}
-	MonitorPositionWithBot(mint, buySOL, bot.FromConfig(cfg))
+	MonitorPositionWithBot(mint, buySOL, bot.FromConfig(cfg), nil)
 }
 
 // MonitorPositionWithBot uses exit thresholds from the given bot profile (PR-004); quote interval from config.C.
-func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
+// entry: snapshot stream pra-BUY (opsional) untuk kolom entry_* pada trade terekam.
+func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry *pumpws.StreamEvent) {
 	cfg := config.C
 	if cfg == nil {
 		return
 	}
+
+	evCh, cancelEv := pumpws.SubscribeMint(mint)
+	defer cancelEv()
 
 	state := &exit.PositionState{
 		BuySOL:  buySOL,
@@ -41,27 +48,150 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
 	if interval <= 0 {
 		interval = 500 * time.Millisecond
 	}
+	lastLockRefresh := start
 
 	for {
 		elapsed := int(time.Since(start).Seconds())
 
-		q := quote.GetSellQuote(mint)
-		pct := pnl.CalcPnL(buySOL, q)
+		if time.Since(lastLockRefresh) > 2*time.Minute {
+			lock.RefreshMint(mint)
+			lastLockRefresh = time.Now()
+		}
 
-		if exit.ShouldSellAdaptiveBot(pct, elapsed, state, b) {
-			log.Info(fmt.Sprintf("[%s] SELL %s", b.Name, mint))
+		// Rug signal: any liquidity remove event for this mint triggers immediate exit.
+		select {
+		case ev, ok := <-evCh:
+			if ok && ev.TxType == "remove" {
+				// Override: sell immediately regardless of pnl/elapsed thresholds.
+				exitReason := exit.ExitRugRemove
+				if !sellguard.TryAcquireSellExit(mint) {
+					log.Info(fmt.Sprintf("[%s] SELL skipped (exit lock held) %s", b.Name, mint))
+					return
+				}
+				defer sellguard.ReleaseSellExit(mint)
+				log.Info(fmt.Sprintf("[%s] SELL %s exit=%s", b.Name, mint, exitReason))
+				if !executor.SafeSellWithValidation(mint) {
+					return
+				}
+				sellSOL := quote.GetSellQuote(mint)
+				if sellSOL <= 0 {
+					// best effort fallback: last known tick quote not available here, keep 0 if unknown
+					sellSOL = 0
+				}
+				ts := time.Now().Unix()
+				buyCost, sellProceeds := pnl.ApplyFees(buySOL, sellSOL, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
+				pnlSOL := sellProceeds - buyCost
+				pctSOL := 0.0
+				if buyCost > 0 {
+					pctSOL = (pnlSOL / buyCost) * 100
+				}
+				dur := int(time.Since(start).Seconds())
+				tr := store.Trade{
+					Mint:        mint,
+					BotName:     b.Name,
+					BuySOL:      buySOL,
+					SellSOL:     sellSOL,
+					PnLSOL:      pnlSOL,
+					Percent:     pctSOL,
+					DurationSec: dur,
+					ExitReason:  exitReason,
+					TS:          ts,
+					BuyTS:       start.Unix(),
+				}
+				store.ApplyStreamEntryToTrade(&tr, entry)
+				saved, err := store.SaveTrade(tr)
+				report.LogTradeRealtime(tr, saved, err)
+				if err == nil && saved {
+					_ = guard.UpdateDailyLoss(pnlSOL)
+				}
+				_ = report.NotifyTradeSaved()
+				return
+			}
+			// Whale dump signal: large sells often precede sharp drawdowns; exit immediately.
+			if ok && cfg.WhaleSellMinSOL > 0 && ev.TxType == "sell" && ev.HasSolAmount && ev.SolAmount >= cfg.WhaleSellMinSOL {
+				exitReason := exit.ExitWhaleDump
+				if !sellguard.TryAcquireSellExit(mint) {
+					log.Info(fmt.Sprintf("[%s] SELL skipped (exit lock held) %s", b.Name, mint))
+					return
+				}
+				defer sellguard.ReleaseSellExit(mint)
+				log.Info(fmt.Sprintf("[%s] SELL %s exit=%s", b.Name, mint, exitReason))
+				if !executor.SafeSellWithValidation(mint) {
+					return
+				}
+				// Best effort: use quote tick below when available; otherwise use current quote endpoint.
+				sellSOL := quote.GetSellQuote(mint)
+				ts := time.Now().Unix()
+				buyCost, sellProceeds := pnl.ApplyFees(buySOL, sellSOL, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
+				pnlSOL := sellProceeds - buyCost
+				pctSOL := 0.0
+				if buyCost > 0 {
+					pctSOL = (pnlSOL / buyCost) * 100
+				}
+				dur := int(time.Since(start).Seconds())
+				tr := store.Trade{
+					Mint:        mint,
+					BotName:     b.Name,
+					BuySOL:      buySOL,
+					SellSOL:     sellSOL,
+					PnLSOL:      pnlSOL,
+					Percent:     pctSOL,
+					DurationSec: dur,
+					ExitReason:  exitReason,
+					TS:          ts,
+					BuyTS:       start.Unix(),
+				}
+				store.ApplyStreamEntryToTrade(&tr, entry)
+				saved, err := store.SaveTrade(tr)
+				report.LogTradeRealtime(tr, saved, err)
+				if err == nil && saved {
+					_ = guard.UpdateDailyLoss(pnlSOL)
+				}
+				_ = report.NotifyTradeSaved()
+				return
+			}
+		default:
+		}
+
+		q, receivedAt := quote.GetSellQuoteWithTime(mint)
+		if cfg.SimulateEngine && (q <= 0 || receivedAt.IsZero()) {
+			q = quote.SyntheticSellQuoteForEngine(mint, buySOL, elapsed)
+			receivedAt = time.Now()
+		}
+		if quoteStale(receivedAt, cfg.QuoteMaxAgeMS) {
+			time.Sleep(interval)
+			continue
+		}
+		buyCostForPct, qNet := pnl.ApplyFees(buySOL, q, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
+		pct := pnl.CalcPnL(buyCostForPct, qNet)
+
+		sell, exitReason := exit.AdaptiveExitReason(pct, elapsed, state, b)
+		if sell {
+			if !sellguard.TryAcquireSellExit(mint) {
+				log.Info(fmt.Sprintf("[%s] SELL skipped (exit lock held) %s", b.Name, mint))
+				return
+			}
+			defer sellguard.ReleaseSellExit(mint)
+			log.Info(fmt.Sprintf("[%s] SELL %s exit=%s", b.Name, mint, exitReason))
 			if !executor.SafeSellWithValidation(mint) {
 				return
 			}
 			sellSOL := quote.GetSellQuote(mint)
+			if sellSOL <= 0 {
+				sellSOL = q
+			}
+			if cfg.SimulateEngine && sellSOL <= 0 {
+				sellSOL = quote.SyntheticSellQuoteForEngine(mint, buySOL, elapsed)
+			}
 			ts := time.Now().Unix()
-			pnlSOL := sellSOL - buySOL
+			buyCost, sellProceeds := pnl.ApplyFees(buySOL, sellSOL, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
+			pnlSOL := sellProceeds - buyCost
 			pctSOL := 0.0
-			if buySOL > 0 {
-				pctSOL = (pnlSOL / buySOL) * 100
+			if buyCost > 0 {
+				pctSOL = (pnlSOL / buyCost) * 100
 			}
 			dur := int(time.Since(start).Seconds())
-			saved, err := store.SaveTrade(store.Trade{
+			tr := store.Trade{
 				Mint:        mint,
 				BotName:     b.Name,
 				BuySOL:      buySOL,
@@ -69,8 +199,13 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
 				PnLSOL:      pnlSOL,
 				Percent:     pctSOL,
 				DurationSec: dur,
+				ExitReason:  exitReason,
 				TS:          ts,
-			})
+				BuyTS:       start.Unix(),
+			}
+			store.ApplyStreamEntryToTrade(&tr, entry)
+			saved, err := store.SaveTrade(tr)
+			report.LogTradeRealtime(tr, saved, err)
 			if err == nil && saved {
 				_ = guard.UpdateDailyLoss(pnlSOL)
 			}
@@ -80,4 +215,11 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig) {
 
 		time.Sleep(interval)
 	}
+}
+
+func quoteStale(receivedAt time.Time, maxAgeMS int) bool {
+	if maxAgeMS <= 0 || receivedAt.IsZero() {
+		return false
+	}
+	return time.Since(receivedAt) > time.Duration(maxAgeMS)*time.Millisecond
 }

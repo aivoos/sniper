@@ -3,6 +3,7 @@ package guard
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -89,7 +90,10 @@ func IsKillSwitchTriggered() bool {
 	if err != nil {
 		return false
 	}
-	return loss >= cfg.MaxDailyLoss
+	// Hazards §10: bandingkan setelah pembulatan konsisten (SOL).
+	lossR := math.Round(loss*1e6) / 1e6
+	maxR := math.Round(cfg.MaxDailyLoss*1e6) / 1e6
+	return lossR >= maxR
 }
 
 // HasEnoughBalance memeriksa saldo vs MIN_BALANCE.
@@ -119,6 +123,9 @@ func CanTrade(balanceSOL float64) bool {
 		if err == nil && n >= int64(cfg.MaxDailyTrades) {
 			return false
 		}
+	}
+	if !IsWithinActiveTradingHours() {
+		return false
 	}
 	return true
 }

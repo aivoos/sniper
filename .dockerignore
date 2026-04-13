@@ -1,4 +1,15 @@
 .git
+.github
+**/*.log
+**/*.sqlite
+**/*.sqlite3
+coverage.out
+tmp
+terminals
+agent-transcripts
+.env
+.env.*
+.git
 worker
 .env
 *.md

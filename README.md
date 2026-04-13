@@ -18,6 +18,12 @@ Platform eksekusi terkendali (*governed execution engine*) untuk Solana: worker 
 | [docs/rlangga-production-hazards-and-fixes.md](docs/rlangga-production-hazards-and-fixes.md) | Race, edge case, perbaikan wajib |
 | [docs/rlangga-repo-structure.md](docs/rlangga-repo-structure.md) | Layout modul Go yang direncanakan |
 | [docs/rlangga-test-standard.md](docs/rlangga-test-standard.md) | Standar tes: unit / simulasi / integrasi, CI, mocking |
+| [docs/testing-and-release.md](docs/testing-and-release.md) | Urutan tes yang benar → staging → live; mitos coverage |
+| [docs/go-live-checklist.md](docs/go-live-checklist.md) | Checklist sebelum mainnet / uang nyata |
+| [docs/simulation-readiness.md](docs/simulation-readiness.md) | Laporan kesiapan simulasi stream + paper engine (`SIMULATE_ENGINE`) |
+| [docs/wss-data-for-filters.md](docs/wss-data-for-filters.md) | Field & subscribe WSS PumpPortal / PumpAPI untuk filter akurasi |
+| [docs/filter-rug-honeypot.md](docs/filter-rug-honeypot.md) | Gate on-chain: freeze/mint authority, konsentrasi holder (Helius/RPC) |
+| [docs/implementation-vs-spec.md](docs/implementation-vs-spec.md) | Apa yang belum 1:1 dengan blueprint (wallet/recovery stub, cuplikan dokumen usang) |
 | [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md) | Parity lokal = CI = server; penjelasan GCC / `build-essential` |
 
 ### Roadmap implementasi (PR)
@@ -47,7 +53,7 @@ Detail: [docs/rlangga-full-stack.md](docs/rlangga-full-stack.md).
 
 ## CI / gate merge
 
-GitHub Actions (`.github/workflows/ci.yml`) menjalankan `gofmt`, `go vet`, `go test -race`, dan ambang coverage. Workflow **CI** dan **CD** bisa dijalankan manual dari tab *Actions* → pilih workflow → *Run workflow*. **Sebelum push**, samakan dengan CI: `make ci` (lihat [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md)).
+GitHub Actions (`.github/workflows/ci.yml`) menjalankan `gofmt`, `go vet`, `go test -race`, dan ambang coverage (`COVERAGE_MIN`, samakan dengan `Makefile`). **Sebelum push:** `make ci`; parity penuh dengan step CI: `make test-race` (perlu gcc). Alur tes → staging → live: [docs/testing-and-release.md](docs/testing-and-release.md). Workflow **CI** / **CD** bisa dijalankan manual dari tab *Actions*. Lihat juga [docs/rlangga-dev-parity.md](docs/rlangga-dev-parity.md).
 
 **Mengaktifkan Actions di repo:** *Settings* → *Actions* → *General* → *Actions permissions* → **Allow all actions and reusable workflows** (atau batasi sesuai kebijakan organisasi). Tanpa ini, workflow tidak jalan.
 

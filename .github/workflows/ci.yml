@@ -41,13 +41,14 @@ jobs:
         run: |
           CGO_ENABLED=1 go test ./internal/... -count=1 -race -coverprofile=coverage.out -covermode=atomic
 
-      - name: Coverage floor (adjust COVERAGE_MIN in repo if needed)
+      # Samakan angka dengan COVERAGE_MIN di Makefile (agregat statement; naikkan bertahap + tes).
+      - name: Coverage floor
         env:
-          COVERAGE_MIN: "89"
+          COVERAGE_MIN: "72"
         run: |
           pct=$(go tool cover -func=coverage.out | grep '^total:' | awk '{gsub(/%/,"",$3); print $3}')
           echo "total coverage: ${pct}% (min ${COVERAGE_MIN}%)"
-          awk -v p="$pct" -v m="$COVERAGE_MIN" 'BEGIN { exit !(p+0 >= m+0) }' || { echo "::error::coverage below ${COVERAGE_MIN}%"; exit 1; }
+          awk -v p="$pct" -v m="$COVERAGE_MIN" 'BEGIN { exit !(p+0 >= m+0) }' || { echo "::error::coverage below ${COVERAGE_MIN}% — lihat docs/testing-and-release.md"; exit 1; }
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4

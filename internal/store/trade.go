@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"rlangga/internal/pumpws"
 	"rlangga/internal/redisx"
 )
 
@@ -24,7 +25,53 @@ type Trade struct {
 	PnLSOL      float64 `json:"pnl_sol"`
 	Percent     float64 `json:"percent"`
 	DurationSec int     `json:"duration_sec"`
-	TS          int64   `json:"ts"`
+	ExitReason  string  `json:"exit_reason,omitempty"` // adaptive exit: panic, grace_tp, …; recovery: recovery
+	TS          int64   `json:"ts"`                    // unix detik — waktu tutup posisi / SELL terekam (alias analitik: sell)
+	BuyTS       int64   `json:"buy_ts,omitempty"`      // unix detik — mulai monitor setelah BUY (buka posisi)
+	// Snapshot dari payload WSS saat entry (opsional; untuk analisis SQL / tuning).
+	EntryInitialBuy         float64 `json:"entry_initial_buy,omitempty"`    // initialBuy token (create)
+	EntryMarketCapSOL       float64 `json:"entry_market_cap_sol,omitempty"` // proxy "ukuran" dari stream (bukan reserve on-chain)
+	EntryPool               string  `json:"entry_pool,omitempty"`
+	EntryPoolID             string  `json:"entry_pool_id,omitempty"`
+	EntryStreamTimestampMs  int64   `json:"entry_stream_ts_ms,omitempty"` // timestamp ms dari field "timestamp" WSS jika ada
+	EntryTxType             string  `json:"entry_tx_type,omitempty"`
+	EntryPoolCreatedBy      string  `json:"entry_pool_created_by,omitempty"`
+	EntryBurnedLiquidityPct float64 `json:"entry_burned_liquidity_pct,omitempty"`
+	EntrySolInPool          float64 `json:"entry_sol_in_pool,omitempty"`
+	EntryTokensInPool       float64 `json:"entry_tokens_in_pool,omitempty"`
+}
+
+// ApplyStreamEntryToTrade mengisi kolom entry_* dari payload WSS (snapshot pra-BUY).
+func ApplyStreamEntryToTrade(tr *Trade, ev *pumpws.StreamEvent) {
+	if tr == nil || ev == nil {
+		return
+	}
+	if ev.HasInitialBuy {
+		tr.EntryInitialBuy = ev.InitialBuy
+	}
+	if ev.HasMarketCapSOL {
+		tr.EntryMarketCapSOL = ev.MarketCapSOL
+	}
+	tr.EntryPool = ev.Pool
+	tr.EntryPoolID = ev.PoolID
+	if ev.HasTimestamp {
+		tr.EntryStreamTimestampMs = ev.TimestampMs
+	}
+	if ev.TxType != "" {
+		tr.EntryTxType = ev.TxType
+	}
+	if ev.PoolCreatedBy != "" {
+		tr.EntryPoolCreatedBy = ev.PoolCreatedBy
+	}
+	if ev.HasBurnedLiquidity {
+		tr.EntryBurnedLiquidityPct = ev.BurnedLiquidityPct
+	}
+	if ev.HasSolInPool {
+		tr.EntrySolInPool = ev.SolInPool
+	}
+	if ev.HasTokensInPool {
+		tr.EntryTokensInPool = ev.TokensInPool
+	}
 }
 
 // SaveTrade appends a trade to Redis (LPUSH). Duplicate identical payloads are ignored (SETNX on content hash).
@@ -49,8 +96,10 @@ func SaveTrade(t Trade) (saved bool, err error) {
 		return false, nil
 	}
 	if err := redisx.Client.LPush(ctx, keyTradesList, string(raw)).Err(); err != nil {
+		_ = redisx.Client.Del(ctx, dedupeKey).Err()
 		return false, err
 	}
+	insertTradeSQLite(t)
 	return true, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"rlangga/internal/config"
 )
@@ -94,5 +95,22 @@ func TestGetSellQuote_QuoteField(t *testing.T) {
 	}
 	if GetSellQuote("m") != 0.3 {
 		t.Fatal("quote fallback")
+	}
+}
+
+func TestGetSellQuoteWithTime_ReceivedAt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]float64{"sol": 0.15})
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("PUMPPORTAL_URL", srv.URL)
+	t.Setenv("RPC_STUB", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	before := time.Now()
+	sol, at := GetSellQuoteWithTime("mintX")
+	if sol != 0.15 || at.IsZero() || at.Before(before) {
+		t.Fatalf("sol=%v at=%v", sol, at)
 	}
 }

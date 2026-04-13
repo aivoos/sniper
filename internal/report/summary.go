@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 
 	"rlangga/internal/aggregate"
 	"rlangga/internal/config"
+	"rlangga/internal/log"
 	"rlangga/internal/redisx"
 	"rlangga/internal/store"
 )
@@ -21,6 +23,14 @@ const (
 	keyReportCount    = "report:trade_count"
 	keyReportLastSent = "report:last_sent_unix"
 )
+
+// ResetReportState mengosongkan counter laporan periodik ([REPORT] tick / full summary).
+func ResetReportState(ctx context.Context) error {
+	if redisx.Client == nil {
+		return fmt.Errorf("report: redis not initialized")
+	}
+	return redisx.Client.Del(ctx, keyReportCount, keyReportLastSent).Err()
+}
 
 // telegramAPIBase is the API root (override in tests).
 var telegramAPIBase = "https://api.telegram.org"
@@ -32,13 +42,10 @@ func SetTelegramAPIBase(base string) (restore func()) {
 	return func() { telegramAPIBase = prev }
 }
 
-// SendSummary formats stats and sends to Telegram when bot token and chat ID are set (PR-003).
+// SendSummary formats stats, writes the same text to stdout ([REPORT]), then sends to Telegram if configured (PR-003).
 func SendSummary(s aggregate.Stats, streak int) error {
 	cfg := config.C
 	if cfg == nil {
-		return nil
-	}
-	if cfg.TelegramBotToken == "" || cfg.TelegramChatID == "" {
 		return nil
 	}
 	msg := fmt.Sprintf(`RLANGGA REPORT
@@ -49,6 +56,11 @@ Total PnL: %.4f SOL
 Avg: %.4f SOL
 Loss Streak: %d
 `, s.Total, s.Winrate, s.TotalPnL, s.AvgPnL, streak)
+	log.Info("[REPORT]\n" + msg)
+
+	if cfg.TelegramBotToken == "" || cfg.TelegramChatID == "" {
+		return nil
+	}
 
 	u := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, cfg.TelegramBotToken)
 	body, _ := json.Marshal(map[string]string{
@@ -73,10 +85,14 @@ Loss Streak: %d
 	return nil
 }
 
-// SendPlainMessage mengirim satu teks ke Telegram jika token & chat terkonfigurasi (PR-005 alert, dll.).
+// SendPlainMessage logs [ALERT] ke stdout, lalu Telegram jika token & chat terkonfigurasi (PR-005, dll.).
 func SendPlainMessage(text string) error {
 	cfg := config.C
-	if cfg == nil || cfg.TelegramBotToken == "" || cfg.TelegramChatID == "" {
+	if cfg == nil {
+		return nil
+	}
+	log.Info("[ALERT] " + text)
+	if cfg.TelegramBotToken == "" || cfg.TelegramChatID == "" {
 		return nil
 	}
 	u := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, cfg.TelegramBotToken)
@@ -102,6 +118,52 @@ func SendPlainMessage(text string) error {
 	return nil
 }
 
+// LogTradeRealtime writes one line per closed trade to stdout (real-time), before batch [REPORT] summary.
+func LogTradeRealtime(t store.Trade, saved bool, saveErr error) {
+	if saveErr != nil {
+		log.Info(fmt.Sprintf("[TRADE] mint=%s save_error: %v", t.Mint, saveErr))
+		return
+	}
+	if !saved {
+		log.Info(fmt.Sprintf("[TRADE] mint=%s bot=%s duplicate_skip (dedupe)", t.Mint, t.BotName))
+		return
+	}
+	times := tradeTimeLogSuffix(t)
+	entry := tradeEntryLogSuffix(t)
+	if t.ExitReason != "" {
+		log.Info(fmt.Sprintf("[TRADE] mint=%s bot=%s exit=%s%s%s pnl_sol=%.6f pct=%.2f%% dur_s=%d",
+			t.Mint, t.BotName, t.ExitReason, times, entry, t.PnLSOL, t.Percent, t.DurationSec))
+	} else {
+		log.Info(fmt.Sprintf("[TRADE] mint=%s bot=%s%s%s pnl_sol=%.6f pct=%.2f%% dur_s=%d",
+			t.Mint, t.BotName, times, entry, t.PnLSOL, t.Percent, t.DurationSec))
+	}
+}
+
+func tradeTimeLogSuffix(t store.Trade) string {
+	var parts []string
+	if t.BuyTS != 0 {
+		parts = append(parts, fmt.Sprintf("buy_ts=%d", t.BuyTS))
+	}
+	if t.TS != 0 {
+		parts = append(parts, fmt.Sprintf("sell_ts=%d", t.TS))
+	}
+	if t.EntryStreamTimestampMs != 0 {
+		parts = append(parts, fmt.Sprintf("wss_ts_ms=%d", t.EntryStreamTimestampMs))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " " + strings.Join(parts, " ")
+}
+
+func tradeEntryLogSuffix(t store.Trade) string {
+	if t.EntryPool == "" && t.EntryPoolID == "" && t.EntryInitialBuy == 0 && t.EntryMarketCapSOL == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" entry_ib=%.6g mcap_sol=%.4f pool=%s",
+		t.EntryInitialBuy, t.EntryMarketCapSOL, t.EntryPool)
+}
+
 // NotifyTradeSaved increments counters and may send a summary when thresholds are met (after each SaveTrade).
 func NotifyTradeSaved() error {
 	if redisx.Client == nil || config.C == nil {
@@ -114,6 +176,8 @@ func NotifyTradeSaved() error {
 	if err != nil {
 		return err
 	}
+	log.Info(fmt.Sprintf("[REPORT] tick since_last_full=%d (every_n=%d interval_min=%d)",
+		n, cfg.ReportEveryNTrades, cfg.ReportIntervalMin))
 	now := time.Now().Unix()
 	v, err := redisx.Client.Get(ctx, keyReportLastSent).Result()
 	var last int64

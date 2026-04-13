@@ -16,6 +16,17 @@ func TestWaitTxConfirmed_EmptySig(t *testing.T) {
 	}
 }
 
+func TestConfirmTransaction_RPCStub(t *testing.T) {
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("RPC_URL", "")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if !ConfirmTransaction("sig") {
+		t.Fatal("stub should confirm")
+	}
+}
+
 func TestWaitTxConfirmed_RPCStub(t *testing.T) {
 	t.Setenv("RPC_STUB", "1")
 	t.Setenv("RPC_URL", "")
@@ -29,6 +40,7 @@ func TestWaitTxConfirmed_RPCStub(t *testing.T) {
 
 func TestWaitTxConfirmed_RPCFinalized(t *testing.T) {
 	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"jsonrpc": "2.0",
@@ -71,8 +83,48 @@ func TestGetWalletTokens_Hook(t *testing.T) {
 	}
 }
 
+func TestGetTxStatus_FailoverToSecondRPC(t *testing.T) {
+	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
+	badSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	badURL := badURLFromClosedServer(badSrv)
+
+	goodSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"result": map[string]interface{}{
+				"value": []interface{}{
+					map[string]interface{}{"confirmationStatus": "confirmed"},
+				},
+			},
+		})
+	}))
+	t.Cleanup(goodSrv.Close)
+
+	t.Setenv("RPC_URLS", badURL+","+goodSrv.URL)
+	t.Setenv("RPC_URL", "")
+	t.Setenv("TIMEOUT_MS", "2000")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	preferredRPCIdx.Store(0)
+	t.Cleanup(func() { preferredRPCIdx.Store(0) })
+
+	if getTxStatus("sig") != "confirmed" {
+		t.Fatal("expected failover to second RPC")
+	}
+}
+
+func badURLFromClosedServer(srv *httptest.Server) string {
+	u := srv.URL
+	srv.Close()
+	return u
+}
+
 func TestGetTxStatus_ConnectionFailed(t *testing.T) {
 	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	u := srv.URL
 	srv.Close()
@@ -88,6 +140,7 @@ func TestGetTxStatus_ConnectionFailed(t *testing.T) {
 
 func TestGetTxStatus_BadJSON(t *testing.T) {
 	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`not-json`))
 	}))
@@ -104,6 +157,7 @@ func TestGetTxStatus_BadJSON(t *testing.T) {
 
 func TestGetTxStatus_NilConfirmationStatus(t *testing.T) {
 	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": map[string]interface{}{
@@ -126,6 +180,7 @@ func TestGetTxStatus_NilConfirmationStatus(t *testing.T) {
 
 func TestGetTxStatus_EmptyValue(t *testing.T) {
 	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": map[string]interface{}{"value": []interface{}{}},
@@ -144,6 +199,7 @@ func TestGetTxStatus_EmptyValue(t *testing.T) {
 
 func TestWaitTxConfirmed_PollsUntilConfirmed(t *testing.T) {
 	t.Setenv("RPC_STUB", "0")
+	t.Setenv("ENABLE_TRADING", "false")
 	var n atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c := n.Add(1)

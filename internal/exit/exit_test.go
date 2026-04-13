@@ -109,3 +109,36 @@ func TestShouldSellAdaptive_PeakTracking(t *testing.T) {
 		t.Fatalf("peak: %v", st.PeakPnL)
 	}
 }
+
+func TestAdaptiveExitReason_Reasons(t *testing.T) {
+	b := bot.FromConfig(cfgExit())
+	st := &PositionState{}
+	if ok, r := AdaptiveExitReason(-9, 5, st, b); !ok || r != ExitPanic {
+		t.Fatalf("panic: ok=%v r=%q", ok, r)
+	}
+	st = &PositionState{}
+	if ok, r := AdaptiveExitReason(8, 1, st, b); !ok || r != ExitGraceTP {
+		t.Fatalf("grace_tp: ok=%v r=%q", ok, r)
+	}
+	st = &PositionState{}
+	if ok, r := AdaptiveExitReason(-6, 5, st, b); !ok || r != ExitStopLoss {
+		t.Fatalf("stop_loss: ok=%v r=%q", ok, r)
+	}
+	st = &PositionState{}
+	if ok, r := AdaptiveExitReason(8, 6, st, b); !ok || r != ExitTakeProfit {
+		t.Fatalf("take_profit: ok=%v r=%q", ok, r)
+	}
+	st = &PositionState{PeakPnL: 10}
+	// Di bawah TP (7) supaya bukan take_profit; turun dari peak ≥ MomentumDrop.
+	if ok, r := AdaptiveExitReason(6, 6, st, b); !ok || r != ExitMomentum {
+		t.Fatalf("momentum: ok=%v r=%q", ok, r)
+	}
+	st = &PositionState{}
+	c := cfgExit()
+	c.GraceSeconds = 0
+	c.MaxHold = 0
+	b2 := bot.FromConfig(c)
+	if ok, r := AdaptiveExitReason(0, 0, st, b2); !ok || r != ExitMaxHold {
+		t.Fatalf("max_hold: ok=%v r=%q", ok, r)
+	}
+}

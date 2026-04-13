@@ -5,6 +5,8 @@
 
 Dokumen ini memetakan layout kode Go (`module rlangga`), titik masuk worker, paket `internal`, kontainer, dan variabel lingkungan. Spesifikasi perilaku bisnis (guard, kuota, jendela waktu) tetap mengacu pada blueprint induk. Arsitektur lapisan penuh (infra → data → observability): [rlangga-full-stack.md](./rlangga-full-stack.md). Hazard produksi (race, edge case): [rlangga-production-hazards-and-fixes.md](./rlangga-production-hazards-and-fixes.md). Kontrak variabel lingkungan: [rlangga-env-contract.md](./rlangga-env-contract.md). Standar pengujian: [rlangga-test-standard.md](./rlangga-test-standard.md).
 
+**Peringatan:** cuplikan kode Go di bagian bawah dokumen ini bersifat **historis / pedagogis**. Perilaku aktual ada di file sumber; penyimpangan vs desain dicatat di [implementation-vs-spec.md](./implementation-vs-spec.md).
+
 ---
 
 ## Pohon direktori
@@ -12,7 +14,9 @@ Dokumen ini memetakan layout kode Go (`module rlangga`), titik masuk worker, pak
 ```text
 rlangga/
 ├── cmd/
-│   └── worker/
+│   ├── worker/
+│   │   └── main.go
+│   └── reset-pnl/
 │       └── main.go
 │
 ├── internal/
@@ -33,6 +37,11 @@ rlangga/
 │   ├── lock/
 │   ├── idempotency/
 │   ├── wallet/
+│   ├── redisx/
+│   ├── pumpws/
+│   ├── pumpnative/
+│   ├── sellguard/
+│   ├── testutil/
 │   └── log/
 │
 ├── go.mod
@@ -495,13 +504,14 @@ docker-compose up --build -d
 |--------|------------|
 | Compile | Ya |
 | Modular | Ya (`internal/` per domain) |
-| Extensible | Ya (placeholder TODO terarah) |
-| Production baseline | Ya — perlu pengikatan API/RPC/guard sesuai blueprint |
+| Extensible | Ya (hook tes + mode stub/simulasi) |
+| Production baseline | Sebagian — integrasi **saldo SOL** dan **scan token wallet** untuk recovery masih stub; lihat [implementation-vs-spec.md](./implementation-vs-spec.md) |
 
 ---
 
 ## Catatan implementasi
 
-- **`rpc.WaitTxConfirmed`:** isi loop saat ini mengembalikan `true` langsung; sesuaikan dengan polling konfirmasi nyata (dan hilangkan kode tak terjangkau).
+- **`rpc.WaitTxConfirmed`:** memanggil JSON-RPC `getSignatureStatuses` (bukan return konstan); failover antar-URL di `RPC_URLS`. `RPC_STUB=1` mempertahankan perilaku uji tanpa jaringan.
 - **`internal/log`:** nama paket `log` bentrok dengan standar library `log` jika diimpor bersamaan; pertimbangkan rename paket ke `logger` atau `applog` saat integrasi penuh.
-- **Blueprint:** guard waktu, kuota harian, daily loss, dan reporting Telegram dijabarkan di [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md); hubungkan `guard`, `report`, dan konfigurasi dari `.env` ke perilaku tersebut.
+- **Blueprint:** guard waktu, kuota harian, daily loss, dan reporting Telegram dijabarkan di [rlangga-blueprint-v2.md](./rlangga-blueprint-v2.md); modul `guard` / `report` terhubung ke `.env`.
+- **Cuplikan kode di bawah** (Init placeholder, `TODO real API`, dll.) **tidak** menggantikan pembacaan sumber aktual — lihat peringatan di atas.

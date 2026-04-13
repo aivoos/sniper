@@ -20,3 +20,15 @@ func TestCalcPnL_Deterministic(t *testing.T) {
 		t.Fatal("non-deterministic")
 	}
 }
+
+func TestApplyFees(t *testing.T) {
+	buyCost, sellProceeds := ApplyFees(1, 1, 0.25, 0.25)
+	// 1 * (1+0.0025) = 1.0025
+	if buyCost < 1.0024 || buyCost > 1.0026 {
+		t.Fatalf("buyCost %v", buyCost)
+	}
+	// 1 * (1-0.0025) = 0.9975
+	if sellProceeds < 0.9974 || sellProceeds > 0.9976 {
+		t.Fatalf("sellProceeds %v", sellProceeds)
+	}
+}

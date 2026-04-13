@@ -16,6 +16,12 @@ import (
 	"rlangga/internal/testutil"
 )
 
+func TestLogTradeRealtime(t *testing.T) {
+	LogTradeRealtime(store.Trade{Mint: "m", BotName: "b", PnLSOL: 0.01, Percent: 1, DurationSec: 2}, true, nil)
+	LogTradeRealtime(store.Trade{Mint: "m2"}, false, nil)
+	LogTradeRealtime(store.Trade{Mint: "m3"}, false, io.EOF)
+}
+
 func TestNotifyTradeSaved_NilConfig(t *testing.T) {
 	testutil.UseMiniredis(t)
 	prev := config.C
@@ -197,6 +203,32 @@ func TestNotifyTradeSaved_IntervalTrigger(t *testing.T) {
 	}
 	if err := NotifyTradeSaved(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestResetReportState(t *testing.T) {
+	testutil.UseMiniredis(t)
+	ctx := context.Background()
+	_ = redisx.Client.Set(ctx, keyReportCount, "5", 0).Err()
+	_ = redisx.Client.Set(ctx, keyReportLastSent, "999", 0).Err()
+	if err := ResetReportState(ctx); err != nil {
+		t.Fatal(err)
+	}
+	n, err := redisx.Client.Exists(ctx, keyReportCount, keyReportLastSent).Result()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("expected keys removed, exists=%d", n)
+	}
+}
+
+func TestResetReportState_NoRedis(t *testing.T) {
+	prev := redisx.Client
+	redisx.Client = nil
+	t.Cleanup(func() { redisx.Client = prev })
+	if err := ResetReportState(context.Background()); err == nil {
+		t.Fatal("expected error without redis")
 	}
 }
 

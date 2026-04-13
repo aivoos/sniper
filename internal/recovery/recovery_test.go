@@ -39,6 +39,73 @@ func TestRecoverAll_NoPanic(t *testing.T) {
 	RecoverAll()
 }
 
+func TestRecoverAll_SkipsBelowMinDust(t *testing.T) {
+	testutil.UseMiniredis(t)
+	sellHits := 0
+	sellSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/sell" {
+			sellHits++
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"signature":"x"}`))
+	}))
+	t.Cleanup(sellSrv.Close)
+
+	t.Setenv("PUMPPORTAL_URL", sellSrv.URL)
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("RPC_URL", "http://127.0.0.1:9")
+	t.Setenv("MIN_DUST", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+
+	rpc.WalletTokensHook = func() []rpc.Token {
+		return []rpc.Token{{Mint: "dustMint", Amount: 0.0001}}
+	}
+	t.Cleanup(func() { rpc.WalletTokensHook = nil })
+
+	RecoverAll()
+	if sellHits != 0 {
+		t.Fatalf("sell should be skipped for dust, hits=%d", sellHits)
+	}
+}
+
+func TestRecoverAll_StaleBalanceWait(t *testing.T) {
+	testutil.UseMiniredis(t)
+	sellSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/sell":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"signature": "x"})
+		case "/quote":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]float64{"sol": 0.11})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(sellSrv.Close)
+
+	t.Setenv("PUMPPORTAL_URL", sellSrv.URL)
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("RPC_URL", "http://127.0.0.1:9")
+	t.Setenv("STALE_BALANCE_WAIT_MS", "3")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+
+	rpc.WalletTokensHook = func() []rpc.Token {
+		return []rpc.Token{{Mint: "mintStale", Amount: 1}}
+	}
+	t.Cleanup(func() { rpc.WalletTokensHook = nil })
+
+	start := time.Now()
+	RecoverAll()
+	if time.Since(start) < 2*time.Millisecond {
+		t.Fatal("expected stale balance wait")
+	}
+}
+
 func TestRecoverAll_SellsPositiveBalance(t *testing.T) {
 	testutil.UseMiniredis(t)
 	sellSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -27,6 +27,8 @@
 | Log | Prefix / konteks nama bot |
 | Deploy | Scale worker (Compose / Swarm / replika manual) |
 
+**Konfigurasi di repo:** profil bot di-override lewat env **`BOTS_JSON`** (JSON array); jika kosong, dipakai pasangan default di `internal/bot`. “Beberapa worker” = **beberapa proses/replika** yang berbagi Redis, bukan satu proses dengan banyak goroutine trade paralel per mint (lock global tetap satu mint satu posisi).
+
 ---
 
 ## 2. Pembaruan modul
@@ -106,14 +108,27 @@ func NextBot() BotConfig {
 
 **PR-005:** gate `guard.CanTrade` di awal (setelah baca saldo). Detail perilaku guard: [rlangga-pr-005-profit-guard.md](./rlangga-pr-005-profit-guard.md).
 
+**Urutan kanonik (sesuai `internal/app/app.go`):** guard → *(opsional)* `FILTER_REQUIRE_INITIAL_BUY` (snapshot WSS) → *(opsional)* `filter.AllowMint` (anti-rug RPC) → **idempotency** → **lock** → orchestrator → BUY → monitor. Filter **sebelum** idempotency agar kegagalan filter tidak mengonsumsi dedupe Redis. Variabel filter: [rlangga-env-contract.md](./rlangga-env-contract.md) §7c.1, detail: [filter-rug-honeypot.md](./filter-rug-honeypot.md).
+
 ```go
-func HandleMint(mint string) {
+func HandleMint(mint string, entry *StreamEvent) {
 
     balance := wallet.GetSOLBalance()
 
     if !guard.CanTrade(balance) {
         log.Info("TRADE BLOCKED")
         return
+    }
+
+    if filterRequireInitialBuy && (entry == nil || !entry.HasInitialBuy) {
+        return
+    }
+
+    if filterAntiRug {
+        ok, reason := filter.AllowMint(ctx, mint)
+        if !ok {
+            return
+        }
     }
 
     if idempotency.IsDuplicate(mint) {
@@ -135,6 +150,8 @@ func HandleMint(mint string) {
     MonitorPositionWithBot(mint, cfg.TradeSize, bot)
 }
 ```
+
+*Mode `SIMULATE_TRADING` / `SIMULATE_ENGINE` mengubah cabang awal/akhir — lihat implementasi aktual.*
 
 **Unlock:** sama seperti PR-001 / PR-002 — pastikan `UnlockMint` pada semua path keluar (gagal beli, setelah sell, dll.).
 

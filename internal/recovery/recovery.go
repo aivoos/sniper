@@ -12,6 +12,7 @@ import (
 	"rlangga/internal/redisx"
 	"rlangga/internal/report"
 	"rlangga/internal/rpc"
+	"rlangga/internal/sellguard"
 	"rlangga/internal/store"
 )
 
@@ -22,11 +23,19 @@ func RecoverAll() {
 		if t.Amount <= 0 {
 			continue
 		}
-		if !executor.SafeSellWithValidation(t.Mint) {
+		cfg := config.C
+		if cfg != nil && cfg.MinDust > 0 && t.Amount < cfg.MinDust {
 			continue
 		}
-		cfg := config.C
+		if !sellguard.TryAcquireSellExit(t.Mint) {
+			continue
+		}
+		if !executor.SafeSellWithValidation(t.Mint) {
+			sellguard.ReleaseSellExit(t.Mint)
+			continue
+		}
 		if cfg == nil || redisx.Client == nil {
+			sellguard.ReleaseSellExit(t.Mint)
 			continue
 		}
 		sellSOL := quote.GetSellQuote(t.Mint)
@@ -38,7 +47,7 @@ func RecoverAll() {
 			pct = (pnlSOL / buySOL) * 100
 		}
 		rb := orchestrator.RecoveryBot()
-		saved, err := store.SaveTrade(store.Trade{
+		tr := store.Trade{
 			Mint:        t.Mint,
 			BotName:     rb.Name,
 			BuySOL:      buySOL,
@@ -46,12 +55,20 @@ func RecoverAll() {
 			PnLSOL:      pnlSOL,
 			Percent:     pct,
 			DurationSec: 0,
+			ExitReason:  "recovery",
 			TS:          ts,
-		})
+			BuyTS:       ts,
+		}
+		saved, err := store.SaveTrade(tr)
+		report.LogTradeRealtime(tr, saved, err)
 		if err == nil && saved {
 			_ = guard.UpdateDailyLoss(pnlSOL)
 		}
 		_ = report.NotifyTradeSaved()
+		if cfg.StaleBalanceWaitMS > 0 {
+			time.Sleep(time.Duration(cfg.StaleBalanceWaitMS) * time.Millisecond)
+		}
+		sellguard.ReleaseSellExit(t.Mint)
 	}
 }
 

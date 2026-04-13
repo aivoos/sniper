@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  worker:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      - redis
+    env_file:
+      - .env.staging
+    environment:
+      # Ensure the container points at the compose redis
+      - REDIS_URL=redis:6379
+    volumes:
+      # Optional: persist sqlite mirror if enabled
+      - ./data:/app/data
+
+volumes:
+  redis-data:
+

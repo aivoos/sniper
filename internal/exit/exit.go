@@ -5,6 +5,18 @@ import (
 	"rlangga/internal/config"
 )
 
+// Alasan exit adaptif (PR-002) — dipakai log / store.
+const (
+	ExitPanic      = "panic"
+	ExitGraceTP    = "grace_tp"
+	ExitStopLoss   = "stop_loss"
+	ExitTakeProfit = "take_profit"
+	ExitMomentum   = "momentum"
+	ExitMaxHold    = "max_hold"
+	ExitRugRemove  = "rug_remove_liquidity"
+	ExitWhaleDump  = "whale_dump"
+)
+
 // PositionState tracks peak PnL for momentum exit.
 type PositionState struct {
 	BuySOL  float64
@@ -21,8 +33,14 @@ func ShouldSellAdaptive(pnl float64, elapsed int, state *PositionState, cfg *con
 
 // ShouldSellAdaptiveBot is PR-002 exit rules with thresholds from a bot profile (PR-004).
 func ShouldSellAdaptiveBot(pnl float64, elapsed int, state *PositionState, b bot.BotConfig) bool {
+	ok, _ := AdaptiveExitReason(pnl, elapsed, state, b)
+	return ok
+}
+
+// AdaptiveExitReason mengembalikan apakah harus jual dan label alasan (urutan cek sama ShouldSellAdaptiveBot).
+func AdaptiveExitReason(pnl float64, elapsed int, state *PositionState, b bot.BotConfig) (sell bool, reason string) {
 	if state == nil {
-		return false
+		return false, ""
 	}
 
 	if pnl > state.PeakPnL {
@@ -30,29 +48,32 @@ func ShouldSellAdaptiveBot(pnl float64, elapsed int, state *PositionState, b bot
 	}
 
 	if pnl <= -b.PanicLoss {
-		return true
+		return true, ExitPanic
 	}
 
 	if elapsed < b.GraceSeconds {
-		return pnl >= b.TakeProfit
+		if pnl >= b.TakeProfit {
+			return true, ExitGraceTP
+		}
+		return false, ""
 	}
 
 	if pnl <= -b.StopLoss {
-		return true
+		return true, ExitStopLoss
 	}
 
 	if pnl >= b.TakeProfit && elapsed >= b.MinHold {
-		return true
+		return true, ExitTakeProfit
 	}
 
 	drop := state.PeakPnL - pnl
 	if drop >= b.MomentumDrop {
-		return true
+		return true, ExitMomentum
 	}
 
 	if elapsed >= b.MaxHold {
-		return true
+		return true, ExitMaxHold
 	}
 
-	return false
+	return false, ""
 }

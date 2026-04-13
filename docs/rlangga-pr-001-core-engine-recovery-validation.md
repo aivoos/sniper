@@ -240,7 +240,9 @@ func HandleMint(mint string) {
 
 **TODO PR-002:** ganti `time.Sleep` tetap dengan `monitor` + `exit` adaptif.
 
-**Alur worker kanonik (setelah PR-002–PR-005):** guard → idempotency → lock → orchestrator/bot → buy → monitor adaptif / multi-bot — lihat [PR-002](./rlangga-pr-002-adaptive-exit-pnl.md), [PR-004](./rlangga-pr-004-multi-bot.md), [PR-005](./rlangga-pr-005-profit-guard.md). Cuplikan di atas hanya baseline PR-001.
+**Pembaruan:** di kode saat ini, alur setelah BUY sudah memakai **monitor + exit adaptif** (bukan `Sleep` tetap). Cuplikan di atas tetap ada sebagai **baseline historis PR-001**. Detail selisih dokumen vs repo: [implementation-vs-spec.md](./implementation-vs-spec.md).
+
+**Alur worker kanonik (setelah PR-002–PR-005):** guard → *(opsional)* filter / suffix `pump` → idempotency → lock → orchestrator/bot → buy → monitor adaptif / multi-bot — lihat [PR-004 §5](./rlangga-pr-004-multi-bot.md), [PR-005](./rlangga-pr-005-profit-guard.md), [implementation-vs-spec.md](./implementation-vs-spec.md) §9. Cuplikan di atas hanya baseline PR-001.
 
 Pastikan `UnlockMint` dipanggil pada path sukses setelah sell (atau kebijakan lock yang konsisten) agar tidak mengunci mint selamanya.
 

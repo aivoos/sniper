@@ -7,33 +7,108 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"rlangga/internal/config"
 	"rlangga/internal/log"
+	"rlangga/internal/pumpnative"
+	"rlangga/internal/quote"
 	"rlangga/internal/rpc"
 )
 
 var errNotConfigured = errors.New("executor: pump URL not configured")
 
-// BuyAndValidate tries PumpPortal then PumpAPI; confirms via RPC.
+// BuyAndValidate memakai quote.RaceQuote (PumpPortal vs PumpAPI) untuk urutan provider;
+// hanya satu jalur BUY on-chain per mint: jika provider pertama mengembalikan signature, provider kedua
+// tidak dipanggil walau konfirmasi RPC lambat (hindari double BUY).
 func BuyAndValidate(mint string) bool {
-	sig, err := pumpPortalBuy(mint)
-	if err != nil {
-		sig, err = pumpApiBuy(mint)
-		if err != nil {
+	sim := config.C != nil && config.C.SimulateEngine
+	_, _, preferPortal, ok := quote.RaceQuote(mint)
+	if sim {
+		log.Info("[SIM-ENGINE] BUY mint=" + mint + " (no on-chain tx, quote race done)")
+		return true
+	}
+	if !ok {
+		if ok, try := buyOutcome(pumpPortalBuy, mint); ok {
+			return true
+		} else if !try {
 			return false
 		}
+		if ok, try := buyOutcome(pumpApiBuy, mint); ok {
+			return true
+		} else if !try {
+			return false
+		}
+		return false
 	}
-	return rpc.WaitTxConfirmed(sig)
+	if preferPortal {
+		if ok, try := buyOutcome(pumpPortalBuy, mint); ok {
+			return true
+		} else if !try {
+			return false
+		}
+		if ok, try := buyOutcome(pumpApiBuy, mint); ok {
+			return true
+		} else if !try {
+			return false
+		}
+		return false
+	}
+	if ok, try := buyOutcome(pumpApiBuy, mint); ok {
+		return true
+	} else if !try {
+		return false
+	}
+	if ok, try := buyOutcome(pumpPortalBuy, mint); ok {
+		return true
+	} else if !try {
+		return false
+	}
+	return false
 }
 
-// SafeSellWithValidation retries sell with RPC confirmation.
+// buyOutcome: confirmed=true sukses; tryAlternate=true boleh coba provider lain; false=jangan (tx sudah dikirim).
+func buyOutcome(buy func(string) (string, error), mint string) (confirmed bool, tryAlternate bool) {
+	sig, err := buy(mint)
+	if err != nil || sig == "" {
+		return false, true
+	}
+	if rpc.ConfirmTransaction(sig) {
+		return true, false
+	}
+	log.Info("executor: BUY signature submitted; skip alternate provider (avoid double spend): " + sig)
+	return false, false
+}
+
+// SafeSellWithValidation: race quote (sama seperti BUY), urutan SELL per provider, retry beberapa putaran.
+// Jika satu provider mengembalikan signature, putaran itu tidak memanggil provider kedua (hindari double SELL).
 func SafeSellWithValidation(mint string) bool {
-	for i := 0; i < 5; i++ {
-		sig, err := sell(mint)
-		if err == nil && rpc.WaitTxConfirmed(sig) {
+	sim := config.C != nil && config.C.SimulateEngine
+	_, _, preferPortal, ok := quote.RaceQuote(mint)
+	if sim {
+		log.Info("[SIM-ENGINE] SELL mint=" + mint + " (no on-chain tx, quote race done)")
+		return true
+	}
+	var first, second func(string) (string, error)
+	if ok && preferPortal {
+		first, second = sellPortal, sellAPI
+	} else if ok && !preferPortal {
+		first, second = sellAPI, sellPortal
+	} else {
+		first, second = sellPortal, sellAPI
+	}
+	const maxRounds = 8
+	for i := 0; i < maxRounds; i++ {
+		if ok, try := sellOutcome(first, mint); ok {
 			return true
+		} else if !try {
+			return false
+		}
+		if ok, try := sellOutcome(second, mint); ok {
+			return true
+		} else if !try {
+			return false
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -41,27 +116,114 @@ func SafeSellWithValidation(mint string) bool {
 	return false
 }
 
+func sellOutcome(sell func(string) (string, error), mint string) (confirmed bool, tryAlternate bool) {
+	sig, err := sell(mint)
+	if err != nil || sig == "" {
+		return false, true
+	}
+	if rpc.ConfirmTransaction(sig) {
+		return true, false
+	}
+	log.Info("executor: SELL signature submitted; skip alternate provider this round: " + sig)
+	return false, false
+}
+
 func pumpPortalBuy(mint string) (string, error) {
-	if config.C == nil || config.C.PumpPortalURL == "" || config.C.PumpPortalURL == "xxx" {
+	if config.C == nil {
 		return "", errNotConfigured
 	}
-	return postMint(config.C.PumpPortalURL, mint)
+	cfg := config.C
+	if pumpnative.ShouldUsePortalNative(cfg) {
+		sig, err := pumpnative.PortalBuy(cfg, mint)
+		if err == nil {
+			return sig, nil
+		}
+		if !config.IsUnsetPumpURL(cfg.PumpPortalURL) && !strings.Contains(cfg.PumpPortalURL, "/api/trade") {
+			if s, e := postMint(cfg.PumpPortalURL, mint); e == nil {
+				return s, nil
+			}
+		}
+		return "", err
+	}
+	if config.IsUnsetPumpURL(cfg.PumpPortalURL) {
+		return "", errNotConfigured
+	}
+	return postMint(cfg.PumpPortalURL, mint)
 }
 
 func pumpApiBuy(mint string) (string, error) {
-	if config.C == nil || config.C.PumpAPIURL == "" || config.C.PumpAPIURL == "xxx" {
+	if config.C == nil {
 		return "", errNotConfigured
 	}
-	return postMint(config.C.PumpAPIURL, mint)
+	cfg := config.C
+	if pumpnative.ShouldUseAPINative(cfg) {
+		sig, err := pumpnative.APIBuy(cfg, mint)
+		if err == nil {
+			return sig, nil
+		}
+		if !errors.Is(err, pumpnative.ErrNonJSONResponse) {
+			return "", err
+		}
+	}
+	if config.IsUnsetPumpURL(cfg.PumpAPIURL) {
+		return "", errNotConfigured
+	}
+	return postMint(cfg.PumpAPIURL, mint)
 }
 
-func sell(mint string) (string, error) {
-	// Same endpoints pattern as buy until product API is fixed (swap path /sell).
-	if config.C == nil || config.C.PumpPortalURL == "" || config.C.PumpPortalURL == "xxx" {
+func sellPortal(mint string) (string, error) {
+	if config.C == nil {
 		return "", errNotConfigured
 	}
-	u := config.C.PumpPortalURL + "/sell"
-	return postRaw(u, mint)
+	cfg := config.C
+	if pumpnative.ShouldUsePortalNative(cfg) {
+		sig, err := pumpnative.PortalSell(cfg, mint)
+		if err == nil {
+			return sig, nil
+		}
+		if !config.IsUnsetPumpURL(cfg.PumpPortalURL) && !strings.Contains(cfg.PumpPortalURL, "/api/trade") {
+			u := cfg.PumpPortalURL
+			if u[len(u)-1] == '/' {
+				u = u[:len(u)-1]
+			}
+			if s, e := postRaw(u+"/sell", mint); e == nil {
+				return s, nil
+			}
+		}
+		return "", err
+	}
+	if config.IsUnsetPumpURL(cfg.PumpPortalURL) {
+		return "", errNotConfigured
+	}
+	u := cfg.PumpPortalURL
+	if u[len(u)-1] == '/' {
+		u = u[:len(u)-1]
+	}
+	return postRaw(u+"/sell", mint)
+}
+
+func sellAPI(mint string) (string, error) {
+	if config.C == nil {
+		return "", errNotConfigured
+	}
+	cfg := config.C
+	if pumpnative.ShouldUseAPINative(cfg) {
+		sig, err := pumpnative.APISell(cfg, mint)
+		if err == nil {
+			return sig, nil
+		}
+		if !errors.Is(err, pumpnative.ErrNonJSONResponse) {
+			return "", err
+		}
+	}
+	if config.IsUnsetPumpURL(cfg.PumpAPIURL) {
+		return "", errNotConfigured
+	}
+	u := cfg.PumpAPIURL
+	if u[len(u)-1] == '/' {
+		u = u[:len(u)-1]
+	}
+	return postRaw(u+"/sell", mint)
 }
 
 func postMint(baseURL, mint string) (string, error) {
