@@ -10,14 +10,14 @@ import (
 
 // BotConfig is exit/threshold profile for one logical bot (PR-004).
 type BotConfig struct {
-	Name         string  `json:"name"`
-	MinHold      int     `json:"min_hold"`
-	MaxHold      int     `json:"max_hold"`
-	TakeProfit   float64 `json:"take_profit"`
-	StopLoss     float64 `json:"stop_loss"`
-	PanicLoss    float64 `json:"panic_loss"`
-	MomentumDrop float64 `json:"momentum_drop"`
-	GraceSeconds int     `json:"grace_seconds"`
+	Name           string  `json:"name"`
+	MinHold        int     `json:"min_hold"`
+	MaxHold        int     `json:"max_hold"`
+	TakeProfit     float64 `json:"take_profit"`
+	StopLoss       float64 `json:"stop_loss"`
+	PanicLoss      float64 `json:"panic_loss"`
+	MomentumDrop   float64 `json:"momentum_drop"`
+	GraceSeconds   int     `json:"grace_seconds"`
 	GraceSL        float64 `json:"grace_sl"`
 	GraceTP        float64 `json:"grace_tp"`
 	GraceTrailDrop float64 `json:"grace_trail_drop"`
@@ -29,14 +29,14 @@ func FromConfig(c *config.Config) BotConfig {
 		return BotConfig{Name: "default"}
 	}
 	return BotConfig{
-		Name:         "default",
-		MinHold:      c.MinHold,
-		MaxHold:      c.MaxHold,
-		TakeProfit:   c.TakeProfit,
-		StopLoss:     c.StopLoss,
-		PanicLoss:    c.PanicSL,
-		MomentumDrop: c.MomentumDrop,
-		GraceSeconds: c.GraceSeconds,
+		Name:           "default",
+		MinHold:        c.MinHold,
+		MaxHold:        c.MaxHold,
+		TakeProfit:     c.TakeProfit,
+		StopLoss:       c.StopLoss,
+		PanicLoss:      c.PanicSL,
+		MomentumDrop:   c.MomentumDrop,
+		GraceSeconds:   c.GraceSeconds,
 		GraceSL:        c.GraceSL,
 		GraceTP:        c.GraceTP,
 		GraceTrailDrop: c.GraceTrailDrop,

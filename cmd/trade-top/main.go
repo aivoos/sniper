@@ -53,4 +53,3 @@ func main() {
 	fmt.Printf("pnl_sol=%.6f pct=%.2f%% mint=%s bot=%s exit=%s buy_ts=%d sell_ts=%d\n",
 		worst.PnLSOL, worst.Percent, worst.Mint, worst.BotName, worst.ExitReason, worst.BuyTS, worst.TS)
 }
-

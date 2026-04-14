@@ -16,9 +16,11 @@ func PublishStreamEvent(ev StreamEvent) {
 	if ev.Mint == "" {
 		return
 	}
+	// Hold RLock for the full fan-out: subs is a map that cancel() mutates; iterating
+	// after Unlock races with delete/close (see monitor whale_exit_test with -race).
 	busMu.RLock()
+	defer busMu.RUnlock()
 	subs := bus[ev.Mint]
-	busMu.RUnlock()
 	if len(subs) == 0 {
 		return
 	}

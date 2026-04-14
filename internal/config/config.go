@@ -45,10 +45,10 @@ type Config struct {
 	PumpFeeBuyPct  float64 `validate:"gte=0"` // PUMP_FEE_BUY_PCT
 	PumpFeeSellPct float64 `validate:"gte=0"` // PUMP_FEE_SELL_PCT
 
-	TradeSize        float64       `validate:"gte=0"` // TRADE_SIZE SOL statis; 0 jika pakai TRADE_SIZE_PCT
-	TradeSizePct     float64       `validate:"gte=0"` // TRADE_SIZE_PCT — persentase saldo wallet (0=off, pakai TRADE_SIZE)
+	TradeSize    float64 `validate:"gte=0"` // TRADE_SIZE SOL statis; 0 jika pakai TRADE_SIZE_PCT
+	TradeSizePct float64 `validate:"gte=0"` // TRADE_SIZE_PCT — persentase saldo wallet (0=off, pakai TRADE_SIZE)
 	// Plafon satu BUY (setelah hitung TRADE_SIZE / TRADE_SIZE_PCT). 0 = tanpa plafon (hati-hati wallet gemuk).
-	MaxTradeSizeSOL float64 `validate:"gte=0"`
+	MaxTradeSizeSOL  float64       `validate:"gte=0"`
 	TimeoutMS        int           `validate:"gt=0"`
 	RecoveryInterval time.Duration `validate:"gt=0"`
 	RPCStub          bool
@@ -138,10 +138,10 @@ type Config struct {
 	FilterWSSDenyTokenExtensions   []string // FILTER_WSS_DENY_TOKEN_EXTENSIONS (lowercase)
 	FilterWSSMinSolInPool          float64  `validate:"gte=0"` // FILTER_WSS_MIN_SOL_IN_POOL (WSS gate)
 	// Smart entry filters (berbasis Mint Activity Tracker — sliding window event per mint).
-	FilterMinBuySellRatio  float64       `validate:"gte=0"` // FILTER_MIN_BUY_SELL_RATIO — rasio buy/sell minimum sebelum entry (0=off)
-	FilterMinTokenAgeSec   float64       `validate:"gte=0"` // FILTER_MIN_TOKEN_AGE_SEC — umur token minimum sejak pertama kali terlihat di stream (0=off)
-	FilterRequireMcapRise  bool                              // FILTER_REQUIRE_MCAP_RISE — wajib mcap naik (momentum positif) sebelum entry
-	FilterActivityWindowSec float64      `validate:"gte=0"` // FILTER_ACTIVITY_WINDOW_SEC — lebar window untuk analisis aktivitas (default 30)
+	FilterMinBuySellRatio   float64 `validate:"gte=0"` // FILTER_MIN_BUY_SELL_RATIO — rasio buy/sell minimum sebelum entry (0=off)
+	FilterMinTokenAgeSec    float64 `validate:"gte=0"` // FILTER_MIN_TOKEN_AGE_SEC — umur token minimum sejak pertama kali terlihat di stream (0=off)
+	FilterRequireMcapRise   bool    // FILTER_REQUIRE_MCAP_RISE — wajib mcap naik (momentum positif) sebelum entry
+	FilterActivityWindowSec float64 `validate:"gte=0"` // FILTER_ACTIVITY_WINDOW_SEC — lebar window untuk analisis aktivitas (default 30)
 	// Analisis & filter snapshot entry (dari ParseStreamEvent; lihat docs/sql/trades.sql)
 	TradeSQLitePath                 string  `validate:"omitempty"`     // TRADE_SQLITE_PATH — file .sqlite untuk query SQL (selain Redis)
 	FilterMinInitialBuy             float64 `validate:"gte=0"`         // FILTER_MIN_INITIAL_BUY — tolak BUY jika initialBuy < ini (0 = off; perlu snapshot)
@@ -150,7 +150,7 @@ type Config struct {
 	FilterMinBurnedLiquidityPct     float64 `validate:"gte=0,lte=100"` // FILTER_MIN_BURNED_LIQUIDITY_PCT — tolak jika burnedLiquidity < ini (0=off)
 	FilterRejectPoolCreatedByCustom bool    // FILTER_REJECT_POOL_CREATED_BY_CUSTOM — tolak jika poolCreatedBy=custom
 
-	MintCooldownSec int    `validate:"gte=0"` // MINT_COOLDOWN_SEC — cooldown setelah trade per mint (default 300s / 5min)
+	MintCooldownSec int    `validate:"gte=0"`     // MINT_COOLDOWN_SEC — cooldown setelah trade per mint (default 300s / 5min)
 	HealthPort      string `validate:"omitempty"` // HEALTH_PORT — port untuk HTTP health check (default 8080)
 }
 

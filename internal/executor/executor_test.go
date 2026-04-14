@@ -260,3 +260,51 @@ func TestSafeSellWithValidation_Success(t *testing.T) {
 	}
 	SafeSellWithValidation("mintZ")
 }
+
+// API quote lebih cepat → RaceQuote memilih API; SELL memanggil /sell ke API dulu.
+func TestSafeSellWithValidation_QuoteRacePreferAPI(t *testing.T) {
+	var portalSellHits, apiSellHits int
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/quote":
+			time.Sleep(50 * time.Millisecond)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]float64{"sol": 0.1})
+		case "/sell":
+			portalSellHits++
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"signature": "portal-sell"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/quote":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]float64{"sol": 0.2})
+		case "/sell":
+			apiSellHits++
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"signature": "api-sell"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(portal.Close)
+	t.Cleanup(api.Close)
+
+	t.Setenv("PUMPPORTAL_URL", portal.URL)
+	t.Setenv("PUMPAPI_URL", api.URL)
+	t.Setenv("TIMEOUT_MS", "3000")
+	t.Setenv("RPC_STUB", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if !SafeSellWithValidation("So11111111111111111111111111111111111111112") {
+		t.Fatal("expected sell ok")
+	}
+	if apiSellHits != 1 || portalSellHits != 0 {
+		t.Fatalf("smart order: api sell hits=%d portal sell hits=%d", apiSellHits, portalSellHits)
+	}
+}

@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	eventKeyPrefix   = "event:"
-	cooldownPrefix   = "cooldown:"
+	eventKeyPrefix = "event:"
+	cooldownPrefix = "cooldown:"
 )
 
 // IsDuplicate returns true if this mint was seen recently (dedupe window 10s)

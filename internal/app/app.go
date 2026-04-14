@@ -244,11 +244,11 @@ func startPumpStream(ctx context.Context, cfg *config.Config) {
 		if ok && ev.Mint != "" {
 			pumpws.TrackEvent(ev)
 			pumpws.PublishStreamEvent(ev)
-		if cfg.FilterWSSGateActive() {
-			if pass, _ := filter.AllowStreamEvent(&ev); !pass {
-				return
+			if cfg.FilterWSSGateActive() {
+				if pass, _ := filter.AllowStreamEvent(&ev); !pass {
+					return
+				}
 			}
-		}
 			dispatchStreamMintEvent(ev)
 			return
 		}

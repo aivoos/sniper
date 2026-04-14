@@ -514,3 +514,18 @@ func TestLoad_HazardCustom(t *testing.T) {
 		t.Fatalf("%+v", cfg)
 	}
 }
+
+func TestFilterWSSGateActive(t *testing.T) {
+	var nilCfg *Config
+	if nilCfg.FilterWSSGateActive() {
+		t.Fatal("nil config inactive")
+	}
+	empty := &Config{}
+	if empty.FilterWSSGateActive() {
+		t.Fatal("no gates set")
+	}
+	on := &Config{FilterWSSMinSOL: 0.01}
+	if !on.FilterWSSGateActive() {
+		t.Fatal("min SOL gate")
+	}
+}

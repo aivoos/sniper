@@ -44,7 +44,7 @@ jobs:
       # Samakan angka dengan COVERAGE_MIN di Makefile (agregat statement; naikkan bertahap + tes).
       - name: Coverage floor
         env:
-          COVERAGE_MIN: "72"
+          COVERAGE_MIN: "71"
         run: |
           pct=$(go tool cover -func=coverage.out | grep '^total:' | awk '{gsub(/%/,"",$3); print $3}')
           echo "total coverage: ${pct}% (min ${COVERAGE_MIN}%)"

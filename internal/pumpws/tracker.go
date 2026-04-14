@@ -7,14 +7,14 @@ import (
 
 // MintActivity stores aggregated buy/sell activity for a single mint over a sliding window.
 type MintActivity struct {
-	Buys       int
-	Sells      int
-	BuySOL     float64
-	SellSOL    float64
-	FirstSeen  time.Time
-	LastMcap   float64
-	PrevMcap   float64
-	HasMcap    bool
+	Buys      int
+	Sells     int
+	BuySOL    float64
+	SellSOL   float64
+	FirstSeen time.Time
+	LastMcap  float64
+	PrevMcap  float64
+	HasMcap   bool
 }
 
 // BuySellRatio returns buys/sells. If sells==0, returns buys as float (max pressure).
@@ -39,11 +39,11 @@ func (a *MintActivity) McapRising() bool {
 }
 
 type trackedEvent struct {
-	ts     time.Time
-	isBuy  bool
-	sol    float64
-	mcap   float64
-	hasMC  bool
+	ts    time.Time
+	isBuy bool
+	sol   float64
+	mcap  float64
+	hasMC bool
 }
 
 var (

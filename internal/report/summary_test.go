@@ -112,6 +112,28 @@ func TestSendPlainMessage_MockTelegram(t *testing.T) {
 	}
 }
 
+func TestNotifyBotStarted_MockTelegram(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(srv.Close)
+	restore := SetTelegramAPIBase(srv.URL)
+	t.Cleanup(restore)
+
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "BOT")
+	t.Setenv("TELEGRAM_CHAT_ID", "99")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := NotifyBotStarted(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSendSummary_MockTelegram(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
@@ -130,6 +152,33 @@ func TestSendSummary_MockTelegram(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := SendSummary(aggregate.Stats{Total: 2, Winrate: 50, TotalPnL: 0.01}, 1); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSendSummaryWithTrades_ExitBreakdown(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(srv.Close)
+	restore := SetTelegramAPIBase(srv.URL)
+	t.Cleanup(restore)
+
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "T")
+	t.Setenv("TELEGRAM_CHAT_ID", "1")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	trades := []store.Trade{
+		{Mint: "So11111111111111111111111111111111111111112", PnLSOL: 0.2, Percent: 2, ExitReason: "take_profit", TS: now},
+		{Mint: "So11111111111111111111111111111111111111112", PnLSOL: -0.1, Percent: -1, ExitReason: "stop_loss", TS: now - 1},
+	}
+	if err := SendSummaryWithTrades(aggregate.Stats{Total: 2, Winrate: 50, TotalPnL: 0.1}, 1, trades); err != nil {
 		t.Fatal(err)
 	}
 }

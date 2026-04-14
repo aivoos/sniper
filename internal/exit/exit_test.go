@@ -133,6 +133,15 @@ func TestAdaptiveExitReason_GraceSL_DisabledByDefault(t *testing.T) {
 	}
 }
 
+func TestNeedsConfirmation(t *testing.T) {
+	if !NeedsConfirmation(ExitStopLoss) || !NeedsConfirmation(ExitGraceSL) || !NeedsConfirmation(ExitMomentum) {
+		t.Fatal("loss-type reasons need confirmation")
+	}
+	if NeedsConfirmation(ExitTakeProfit) || NeedsConfirmation(ExitPanic) || NeedsConfirmation("other") {
+		t.Fatal("profit/immediate reasons skip confirmation")
+	}
+}
+
 func TestAdaptiveExitReason_Reasons(t *testing.T) {
 	b := bot.FromConfig(cfgExit())
 	st := &PositionState{}

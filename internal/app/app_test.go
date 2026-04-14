@@ -103,6 +103,129 @@ func TestStartPumpStream_EmptyWSURL(t *testing.T) {
 	startPumpStream(context.Background(), &config.Config{})
 }
 
+func TestDispatchStreamMint_EmptyMint(t *testing.T) {
+	dispatchStreamMint("")
+	dispatchStreamMintEvent(pumpws.StreamEvent{})
+	dispatchStreamMintWithEntry("", nil)
+}
+
+func TestHandleMint_ActivityFilterNoData(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		pumpws.ResetTracker()
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	pumpws.ResetTracker()
+	unsetConfigEnv(t)
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("SIMULATE_ENGINE", "1")
+	t.Setenv("PUMPPORTAL_URL", "")
+	t.Setenv("PUMPAPI_URL", "")
+	t.Setenv("QUOTE_INTERVAL_MS", "20")
+	t.Setenv("MAX_HOLD", "1")
+	t.Setenv("MIN_HOLD", "1")
+	t.Setenv("GRACE_SECONDS", "0")
+	t.Setenv("PANIC_SL", "8")
+	t.Setenv("FILTER_MIN_BUY_SELL_RATIO", "1")
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	HandleMint("So11111111111111111111111111111111111111112", nil)
+}
+
+func TestHandleMint_ActivityFilterPasses(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		pumpws.ResetTracker()
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	pumpws.ResetTracker()
+	unsetConfigEnv(t)
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("SIMULATE_ENGINE", "1")
+	t.Setenv("PUMPPORTAL_URL", "")
+	t.Setenv("PUMPAPI_URL", "")
+	t.Setenv("QUOTE_INTERVAL_MS", "20")
+	t.Setenv("MAX_HOLD", "1")
+	t.Setenv("MIN_HOLD", "1")
+	t.Setenv("GRACE_SECONDS", "0")
+	t.Setenv("PANIC_SL", "8")
+	t.Setenv("FILTER_MIN_BUY_SELL_RATIO", "1")
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	mint := "So11111111111111111111111111111111111111112"
+	pumpws.TrackEvent(pumpws.StreamEvent{Mint: mint, TxType: "buy"})
+	pumpws.TrackEvent(pumpws.StreamEvent{Mint: mint, TxType: "buy"})
+	pumpws.TrackEvent(pumpws.StreamEvent{Mint: mint, TxType: "sell"})
+	done := make(chan struct{})
+	go func() {
+		HandleMint(mint, nil)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(6 * time.Second):
+		t.Fatal("HandleMint blocked")
+	}
+}
+
+func TestStartWorkerWithContext_CancelExits(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	unsetConfigEnv(t)
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("HEALTH_PORT", "0")
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		StartWorkerWithContext(ctx)
+		close(done)
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(8 * time.Second):
+		t.Fatal("StartWorkerWithContext did not exit after cancel")
+	}
+}
+
 func TestEntrySnapshotPasses_ExtendedFields(t *testing.T) {
 	cfg := &config.Config{
 		FilterMinEntrySolInPool:         10,
@@ -400,6 +523,7 @@ func unsetConfigEnv(t *testing.T) {
 		"FILTER_WSS_POOL", "FILTER_WSS_MIN_MARKET_CAP_SOL", "FILTER_WSS_MAX_MARKET_CAP_SOL",
 		"TRADE_SQLITE_PATH", "FILTER_MIN_INITIAL_BUY", "FILTER_MIN_ENTRY_MARKET_CAP_SOL",
 		"FILTER_MIN_ENTRY_SOL_IN_POOL", "FILTER_MIN_BURNED_LIQUIDITY_PCT", "FILTER_REJECT_POOL_CREATED_BY_CUSTOM",
+		"FILTER_MIN_BUY_SELL_RATIO", "FILTER_MIN_TOKEN_AGE_SEC", "FILTER_REQUIRE_MCAP_RISE", "FILTER_ACTIVITY_WINDOW_SEC",
 	}
 	for _, k := range keys {
 		_ = os.Unsetenv(k)

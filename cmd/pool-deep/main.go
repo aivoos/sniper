@@ -133,7 +133,11 @@ func main() {
 
 	var wins, losses int
 	var totalPnL float64
-	exitAgg := map[string]struct{ n int; wins int; pnl float64 }{}
+	exitAgg := map[string]struct {
+		n    int
+		wins int
+		pnl  float64
+	}{}
 	for _, t := range trades {
 		totalPnL += t.PnLSOL
 		if t.PnLSOL > 0 {

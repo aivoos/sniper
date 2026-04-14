@@ -27,6 +27,14 @@ func TestIsDuplicate_NoRedis_FailClosed(t *testing.T) {
 	}
 }
 
+func TestSetCooldown_BlocksDuplicate(t *testing.T) {
+	testutil.UseMiniredis(t)
+	SetCooldown("coolmint")
+	if !IsDuplicate("coolmint") {
+		t.Fatal("cooldown key should block as duplicate")
+	}
+}
+
 func TestIsDuplicate_RedisError_FailClosed(t *testing.T) {
 	s, err := miniredis.Run()
 	if err != nil {

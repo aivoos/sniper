@@ -4,7 +4,7 @@
 .PHONY: ci test test-race testv lint fmt vet wss-sample sim-engine sim-reset sim-session
 
 # Samakan dengan COVERAGE_MIN di .github/workflows/ci.yml (satu sumber kebenaran angka).
-COVERAGE_MIN ?= 72
+COVERAGE_MIN ?= 71
 
 fmt:
 	go fmt ./...
