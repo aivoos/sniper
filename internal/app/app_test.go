@@ -337,6 +337,83 @@ func TestHandleMint_GuardBlocksLowBalance(t *testing.T) {
 	HandleMint("mintGuardBlock", nil)
 }
 
+func TestHandleMint_GuardDailyQuota(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MAX_DAILY_TRADES", "1")
+	unsetConfigEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := guard.IncrDailyTradeCount(); err != nil {
+		t.Fatal(err)
+	}
+	HandleMint("mintQuotaBlock")
+}
+
+func TestHandleMint_GuardKillSwitch(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MAX_DAILY_LOSS", "0.1")
+	unsetConfigEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := guard.UpdateDailyLoss(-0.2); err != nil {
+		t.Fatal(err)
+	}
+	HandleMint("mintKillSwitch")
+}
+
+func TestHandleMint_GuardBlocksLowBalance(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		wallet.BalanceHook = nil
+		if redisx.Client != nil {
+			_ = redisx.Client.Close()
+		}
+		redisx.Client = nil
+		config.C = nil
+		s.Close()
+	})
+	t.Setenv("REDIS_URL", s.Addr())
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MIN_BALANCE", "5")
+	unsetConfigEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	wallet.BalanceHook = func() float64 { return 0.01 }
+	HandleMint("mintGuardBlock")
+}
+
 func TestHandleMint_BuyFails(t *testing.T) {
 	s, err := miniredis.Run()
 	if err != nil {
