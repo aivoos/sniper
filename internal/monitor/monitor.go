@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"rlangga/internal/bot"
@@ -25,12 +26,18 @@ func MonitorPosition(mint string, buySOL float64) {
 	if cfg == nil {
 		return
 	}
-	MonitorPositionWithBot(mint, buySOL, bot.FromConfig(cfg), nil)
+	MonitorPositionWithBot(mint, buySOL, bot.FromConfig(cfg), nil, nil)
 }
 
 // MonitorPositionWithBot uses exit thresholds from the given bot profile (PR-004); quote interval from config.C.
 // entry: snapshot stream pra-BUY (opsional) untuk kolom entry_* pada trade terekam.
-func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry *pumpws.StreamEvent) {
+// snap: snapshot tracker aktivitas saat BUY (buy/sell ratio, mcap rising) — opsional.
+func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry *pumpws.StreamEvent, snap *pumpws.ActivitySnapshot) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error(fmt.Sprintf("PANIC RECOVERED [monitor:%s]: %v\n%s", mint, r, debug.Stack()))
+		}
+	}()
 	cfg := config.C
 	if cfg == nil {
 		return
@@ -38,6 +45,9 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 
 	evCh, cancelEv := pumpws.SubscribeMint(mint)
 	defer cancelEv()
+
+	var lastTickQuote float64
+	var hasLastTickQuote bool
 
 	state := &exit.PositionState{
 		BuySOL:  buySOL,
@@ -49,6 +59,10 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 		interval = 500 * time.Millisecond
 	}
 	lastLockRefresh := start
+
+	confirmDur := time.Duration(cfg.ConfirmSLMS) * time.Millisecond
+	var slConfirmSince time.Time
+	var slConfirmReason string
 
 	for {
 		elapsed := int(time.Since(start).Seconds())
@@ -74,9 +88,11 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 					return
 				}
 				sellSOL := quote.GetSellQuote(mint)
-				if sellSOL <= 0 {
-					// best effort fallback: last known tick quote not available here, keep 0 if unknown
-					sellSOL = 0
+				if sellSOL <= 0 && hasLastTickQuote {
+					sellSOL = lastTickQuote
+				}
+				if cfg.SimulateEngine && sellSOL <= 0 {
+					sellSOL = quote.SyntheticSellQuoteForEngine(mint, buySOL, elapsed)
 				}
 				ts := time.Now().Unix()
 				buyCost, sellProceeds := pnl.ApplyFees(buySOL, sellSOL, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
@@ -99,12 +115,15 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 					BuyTS:       start.Unix(),
 				}
 				store.ApplyStreamEntryToTrade(&tr, entry)
+				store.ApplyActivitySnapshotToTrade(&tr, snap)
 				saved, err := store.SaveTrade(tr)
 				report.LogTradeRealtime(tr, saved, err)
 				if err == nil && saved {
 					_ = guard.UpdateDailyLoss(pnlSOL)
 				}
-				_ = report.NotifyTradeSaved()
+				if err := report.NotifyTradeSavedWithTrade(tr); err != nil {
+					log.Error("report: NotifyTradeSaved: " + err.Error())
+				}
 				return
 			}
 			// Whale dump signal: large sells often precede sharp drawdowns; exit immediately.
@@ -121,6 +140,12 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 				}
 				// Best effort: use quote tick below when available; otherwise use current quote endpoint.
 				sellSOL := quote.GetSellQuote(mint)
+				if sellSOL <= 0 && hasLastTickQuote {
+					sellSOL = lastTickQuote
+				}
+				if cfg.SimulateEngine && sellSOL <= 0 {
+					sellSOL = quote.SyntheticSellQuoteForEngine(mint, buySOL, elapsed)
+				}
 				ts := time.Now().Unix()
 				buyCost, sellProceeds := pnl.ApplyFees(buySOL, sellSOL, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
 				pnlSOL := sellProceeds - buyCost
@@ -142,12 +167,15 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 					BuyTS:       start.Unix(),
 				}
 				store.ApplyStreamEntryToTrade(&tr, entry)
+				store.ApplyActivitySnapshotToTrade(&tr, snap)
 				saved, err := store.SaveTrade(tr)
 				report.LogTradeRealtime(tr, saved, err)
 				if err == nil && saved {
 					_ = guard.UpdateDailyLoss(pnlSOL)
 				}
-				_ = report.NotifyTradeSaved()
+				if err := report.NotifyTradeSavedWithTrade(tr); err != nil {
+					log.Error("report: NotifyTradeSaved: " + err.Error())
+				}
 				return
 			}
 		default:
@@ -162,10 +190,36 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 			time.Sleep(interval)
 			continue
 		}
+		if q > 0 {
+			lastTickQuote = q
+			hasLastTickQuote = true
+		}
 		buyCostForPct, qNet := pnl.ApplyFees(buySOL, q, cfg.PumpFeeBuyPct, cfg.PumpFeeSellPct)
 		pct := pnl.CalcPnL(buyCostForPct, qNet)
 
 		sell, exitReason := exit.AdaptiveExitReason(pct, elapsed, state, b)
+		if sell && confirmDur > 0 && exit.NeedsConfirmation(exitReason) {
+			if slConfirmSince.IsZero() {
+				slConfirmSince = time.Now()
+				slConfirmReason = exitReason
+				log.Info(fmt.Sprintf("[%s] SL confirm started (reason=%s pnl=%.2f%%) waiting %dms mint=%s", b.Name, exitReason, pct, cfg.ConfirmSLMS, mint))
+				time.Sleep(interval)
+				continue
+			}
+			if time.Since(slConfirmSince) < confirmDur {
+				time.Sleep(interval)
+				continue
+			}
+			exitReason = slConfirmReason
+		} else if sell && !slConfirmSince.IsZero() && !exit.NeedsConfirmation(exitReason) {
+			log.Info(fmt.Sprintf("[%s] SL confirm escalated to %s (pnl=%.2f%%), immediate sell mint=%s", b.Name, exitReason, pct, mint))
+			slConfirmSince = time.Time{}
+			slConfirmReason = ""
+		} else if !sell && !slConfirmSince.IsZero() {
+			log.Info(fmt.Sprintf("[%s] SL confirm cancelled (wick recovered, pnl=%.2f%%) mint=%s", b.Name, pct, mint))
+			slConfirmSince = time.Time{}
+			slConfirmReason = ""
+		}
 		if sell {
 			if !sellguard.TryAcquireSellExit(mint) {
 				log.Info(fmt.Sprintf("[%s] SELL skipped (exit lock held) %s", b.Name, mint))
@@ -204,12 +258,15 @@ func MonitorPositionWithBot(mint string, buySOL float64, b bot.BotConfig, entry 
 				BuyTS:       start.Unix(),
 			}
 			store.ApplyStreamEntryToTrade(&tr, entry)
+			store.ApplyActivitySnapshotToTrade(&tr, snap)
 			saved, err := store.SaveTrade(tr)
 			report.LogTradeRealtime(tr, saved, err)
 			if err == nil && saved {
 				_ = guard.UpdateDailyLoss(pnlSOL)
 			}
-			_ = report.NotifyTradeSaved()
+			if err := report.NotifyTradeSavedWithTrade(tr); err != nil {
+				log.Error("report: NotifyTradeSaved: " + err.Error())
+			}
 			return
 		}
 

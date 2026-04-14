@@ -1,17 +1,20 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
 
 	"rlangga/internal/app"
 	"rlangga/internal/log"
 	"rlangga/internal/recovery"
+	"rlangga/internal/report"
 )
 
 func main() {
-	// Muat .env dari direktori kerja (opsional; variabel shell tetap diutamakan).
 	_ = godotenv.Load()
 
 	if err := app.Init(); err != nil {
@@ -19,9 +22,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigCh
+		log.Info("shutdown: received " + sig.String())
+		cancel()
+	}()
+
 	recovery.RecoverAll()
+	go recovery.StartLoopWithContext(ctx)
 
-	go recovery.StartLoop()
+	app.StartWorkerWithContext(ctx)
 
-	app.StartWorker()
+	log.Info("shutdown: sending bye report to telegram...")
+	_ = report.SendPlainMessage("BOT STOPPED (graceful shutdown)")
+	log.Info("shutdown: done")
 }

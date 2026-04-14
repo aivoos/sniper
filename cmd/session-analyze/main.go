@@ -53,8 +53,8 @@ func main() {
 	}
 	defer func() { _ = redisx.Client.Close() }()
 
-	// Sesuai permintaan: analisis hanya dari 200 trade terakhir (bukan seluruh histori Redis).
-	trades, err := store.LoadRecent(200)
+	// Muat seluruh histori Redis lalu filter ke jendela waktu (bukan cap 200).
+	trades, err := store.LoadAll()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

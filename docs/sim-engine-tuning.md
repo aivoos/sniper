@@ -56,7 +56,7 @@ Untuk tuning **entry + exit**, sumber yang relevan dari worker adalah:
 Set `PUMP_WS_AUTO_HANDLE=true` dan pastikan `PUMP_WS_URL` (mis. `wss://stream.pumpapi.io`) agar mint diproses dengan snapshot stream.  
 Mirror analitik: `TRADE_SQLITE_PATH=...` (lihat [sql/trades.sql](./sql/trades.sql)) — query SQL tanpa menggantungkan parse log stdout.
 
-**Filter WSS:** profil paling sederhana — cukup **`FILTER_WSS_POOL`** (mis. `pump,pump-amm`); txType/mcap/SOL boleh tidak di-set. Tambahan opsional: `FILTER_WSS_ALLOW_TX_TYPES`, `FILTER_MIN_INITIAL_BUY`, `FILTER_MIN_ENTRY_MARKET_CAP_SOL`, dll.
+**Filter WSS:** profil paling sederhana — cukup **`FILTER_WSS_POOL=pump-amm`** (default template; AMM saja). txType/mcap/SOL boleh tidak di-set. Tambahan opsional: `FILTER_WSS_ALLOW_TX_TYPES`, `FILTER_MIN_INITIAL_BUY`, `FILTER_MIN_ENTRY_MARKET_CAP_SOL`, dll.
 
 ---
 

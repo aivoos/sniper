@@ -38,7 +38,7 @@ func TestMonitorPositionWithBot_ExitOnRugRemoveEvent(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		MonitorPositionWithBot(mint, 0.1, b, nil)
+		MonitorPositionWithBot(mint, 0.1, b, nil, nil)
 		close(done)
 	}()
 

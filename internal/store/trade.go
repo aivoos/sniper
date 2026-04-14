@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"rlangga/internal/idempotency"
 	"rlangga/internal/pumpws"
 	"rlangga/internal/redisx"
 )
@@ -39,6 +40,10 @@ type Trade struct {
 	EntryBurnedLiquidityPct float64 `json:"entry_burned_liquidity_pct,omitempty"`
 	EntrySolInPool          float64 `json:"entry_sol_in_pool,omitempty"`
 	EntryTokensInPool       float64 `json:"entry_tokens_in_pool,omitempty"`
+	// Snapshot tracker aktivitas saat BUY (opsional; untuk analisis win rate vs ratio / mcap).
+	EntryActivityRecorded bool    `json:"entry_activity_recorded,omitempty"`
+	EntryBuySellRatio     float64 `json:"entry_buy_sell_ratio,omitempty"`
+	EntryMcapRising       bool    `json:"entry_mcap_rising,omitempty"`
 }
 
 // ApplyStreamEntryToTrade mengisi kolom entry_* dari payload WSS (snapshot pra-BUY).
@@ -74,6 +79,16 @@ func ApplyStreamEntryToTrade(tr *Trade, ev *pumpws.StreamEvent) {
 	}
 }
 
+// ApplyActivitySnapshotToTrade mengisi kolom entry_* dari tracker aktivitas saat BUY.
+func ApplyActivitySnapshotToTrade(tr *Trade, snap *pumpws.ActivitySnapshot) {
+	if tr == nil || snap == nil {
+		return
+	}
+	tr.EntryActivityRecorded = true
+	tr.EntryBuySellRatio = snap.BuySellRatio
+	tr.EntryMcapRising = snap.McapRising
+}
+
 // SaveTrade appends a trade to Redis (LPUSH). Duplicate identical payloads are ignored (SETNX on content hash).
 // saved is false when dedupe skipped append (same payload hash as a prior save).
 func SaveTrade(t Trade) (saved bool, err error) {
@@ -100,6 +115,9 @@ func SaveTrade(t Trade) (saved bool, err error) {
 		return false, err
 	}
 	insertTradeSQLite(t)
+	if t.PnLSOL < 0 {
+		idempotency.SetCooldown(t.Mint)
+	}
 	return true, nil
 }
 
@@ -116,6 +134,23 @@ func LoadRecent(n int) ([]Trade, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseTradeJSONBatch(vals)
+}
+
+// LoadAll returns every trade in trades:list (newest first, same order as LoadRecent).
+func LoadAll() ([]Trade, error) {
+	if redisx.Client == nil {
+		return nil, fmt.Errorf("store: redis not initialized")
+	}
+	ctx := context.Background()
+	vals, err := redisx.Client.LRange(ctx, keyTradesList, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+	return parseTradeJSONBatch(vals)
+}
+
+func parseTradeJSONBatch(vals []string) ([]Trade, error) {
 	out := make([]Trade, 0, len(vals))
 	for _, v := range vals {
 		var t Trade
@@ -125,4 +160,13 @@ func LoadRecent(n int) ([]Trade, error) {
 		out = append(out, t)
 	}
 	return out, nil
+}
+
+// LoadTradesForReport loads trades for aggregates and Telegram reports.
+// limit <= 0 means load the full list (no cap).
+func LoadTradesForReport(limit int) ([]Trade, error) {
+	if limit <= 0 {
+		return LoadAll()
+	}
+	return LoadRecent(limit)
 }

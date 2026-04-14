@@ -79,6 +79,8 @@ go run ./cmd/worker
 docker compose up --build
 ```
 
+**Deploy di VPS (SSH + Docker):** [docs/deploy-vps.md](docs/deploy-vps.md).
+
 1. Salin [`.env.example`](.env.example) → `.env` dan isi sesuai [docs/rlangga-env-contract.md](docs/rlangga-env-contract.md).  
 2. Uji skenario *Definition of done* di [PR-001](docs/rlangga-pr-001-core-engine-recovery-validation.md) lalu lanjut PR berikutnya.
 

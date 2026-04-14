@@ -88,6 +88,15 @@ func AllowStreamEvent(ev *pumpws.StreamEvent) (ok bool, reason string) {
 		}
 	}
 
+	if cfg.FilterWSSMinSolInPool > 0 {
+		if !ev.HasSolInPool {
+			return false, "solInPool missing (FILTER_WSS_MIN_SOL_IN_POOL active)"
+		}
+		if ev.SolInPool < cfg.FilterWSSMinSolInPool {
+			return false, "solInPool below min"
+		}
+	}
+
 	// Pool origin / rug checks (PumpAPI stream metadata).
 	if len(cfg.FilterWSSRequirePoolCreatedBy) > 0 {
 		by := strings.ToLower(strings.TrimSpace(ev.PoolCreatedBy))

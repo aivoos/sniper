@@ -110,6 +110,29 @@ func TestShouldSellAdaptive_PeakTracking(t *testing.T) {
 	}
 }
 
+func TestAdaptiveExitReason_GraceSL(t *testing.T) {
+	c := cfgExit()
+	c.GraceSL = 3
+	b := bot.FromConfig(c)
+	st := &PositionState{}
+	if ok, r := AdaptiveExitReason(-4, 1, st, b); !ok || r != ExitGraceSL {
+		t.Fatalf("expected grace_sl, got ok=%v r=%q", ok, r)
+	}
+	// PnL = -2 should NOT trigger grace_sl (below threshold)
+	st2 := &PositionState{}
+	if ok, _ := AdaptiveExitReason(-2, 1, st2, b); ok {
+		t.Fatal("should not exit at -2 with grace_sl=3")
+	}
+}
+
+func TestAdaptiveExitReason_GraceSL_DisabledByDefault(t *testing.T) {
+	b := bot.FromConfig(cfgExit()) // GraceSL = 0, disabled
+	st := &PositionState{}
+	if ok, _ := AdaptiveExitReason(-4, 1, st, b); ok {
+		t.Fatal("grace_sl=0 should not trigger exit")
+	}
+}
+
 func TestAdaptiveExitReason_Reasons(t *testing.T) {
 	b := bot.FromConfig(cfgExit())
 	st := &PositionState{}

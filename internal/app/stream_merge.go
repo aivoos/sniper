@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"rlangga/internal/pumpws"
+	"rlangga/internal/safego"
 )
 
 // streamMintGate menggabungkan dua koneksi WebSocket (primer + fallback) ke satu jalur kerja:
@@ -29,8 +30,8 @@ func dispatchStreamMintWithEntry(mint string, entry *pumpws.StreamEvent) {
 	if _, loaded := streamMintGate.LoadOrStore(mint, struct{}{}); loaded {
 		return
 	}
-	go func() {
+	safego.Go("dispatch:"+mint, func() {
 		defer streamMintGate.Delete(mint)
 		HandleMint(mint, entry)
-	}()
+	})
 }

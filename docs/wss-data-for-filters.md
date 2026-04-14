@@ -97,7 +97,7 @@ Jika sudah pakai **PumpAPI untuk trade** (`PUMP_NATIVE` + `api.pumpapi.io`), **s
 
 ### Profil minimal: hanya `FILTER_WSS_POOL`
 
-Cukup set **`FILTER_WSS_POOL`** ke satu atau beberapa venue, dipisah koma (case-insensitive), mis. **`pump`** atau **`pump,pump-amm`**. Biarkan **`FILTER_WSS_ALLOW_TX_TYPES`**, **`FILTER_WSS_DENY_TX_TYPES`**, **`FILTER_WSS_MIN_MARKET_CAP_SOL`**, dll. **kosong atau 0** — gate WSS yang aktif hanya **pool**: payload harus punya field `pool` non-kosong dan cocok salah satu entri daftar. Lihat `internal/filter/wss.go` (`AllowStreamEvent`).
+Cukup set **`FILTER_WSS_POOL`** ke satu atau beberapa venue, dipisah koma (case-insensitive). **Default disarankan: `pump-amm`** (pool PumpSwap AMM). Venue **`pump`** (bonding curve) hanya jika kamu sengaja memasukkannya — profil produksi yang konsisten dengan data analitik memakai **AMM saja**. Biarkan **`FILTER_WSS_ALLOW_TX_TYPES`**, **`FILTER_WSS_DENY_TX_TYPES`**, **`FILTER_WSS_MIN_MARKET_CAP_SOL`**, dll. **kosong atau 0** — gate WSS yang aktif hanya **pool**: payload harus punya field `pool` non-kosong dan cocok salah satu entri daftar. Lihat `internal/filter/wss.go` (`AllowStreamEvent`).
 
 **Subscribe:** untuk sinyal “hanya token baru”, cukup `subscribeNewToken` (default PumpPortal); untuk aktivitas per-mint, `subscribeTokenTrade` + `keys` — lalu set `FILTER_WSS_ALLOW_TX_TYPES` / threshold SOL sesuai sampel nyata (opsional; tidak diperlukan untuk profil pool-only).
 

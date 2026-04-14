@@ -18,6 +18,9 @@ type BotConfig struct {
 	PanicLoss    float64 `json:"panic_loss"`
 	MomentumDrop float64 `json:"momentum_drop"`
 	GraceSeconds int     `json:"grace_seconds"`
+	GraceSL        float64 `json:"grace_sl"`
+	GraceTP        float64 `json:"grace_tp"`
+	GraceTrailDrop float64 `json:"grace_trail_drop"`
 }
 
 // FromConfig maps global env config to a single BotConfig (fallback / tests).
@@ -34,6 +37,9 @@ func FromConfig(c *config.Config) BotConfig {
 		PanicLoss:    c.PanicSL,
 		MomentumDrop: c.MomentumDrop,
 		GraceSeconds: c.GraceSeconds,
+		GraceSL:        c.GraceSL,
+		GraceTP:        c.GraceTP,
+		GraceTrailDrop: c.GraceTrailDrop,
 	}
 }
 

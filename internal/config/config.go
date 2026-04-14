@@ -45,13 +45,19 @@ type Config struct {
 	PumpFeeBuyPct  float64 `validate:"gte=0"` // PUMP_FEE_BUY_PCT
 	PumpFeeSellPct float64 `validate:"gte=0"` // PUMP_FEE_SELL_PCT
 
-	TradeSize        float64       `validate:"gt=0"`
+	TradeSize        float64       `validate:"gte=0"` // TRADE_SIZE SOL statis; 0 jika pakai TRADE_SIZE_PCT
+	TradeSizePct     float64       `validate:"gte=0"` // TRADE_SIZE_PCT — persentase saldo wallet (0=off, pakai TRADE_SIZE)
+	// Plafon satu BUY (setelah hitung TRADE_SIZE / TRADE_SIZE_PCT). 0 = tanpa plafon (hati-hati wallet gemuk).
+	MaxTradeSizeSOL float64 `validate:"gte=0"`
 	TimeoutMS        int           `validate:"gt=0"`
 	RecoveryInterval time.Duration `validate:"gt=0"`
 	RPCStub          bool
 	PaperTrade       bool // PAPER_TRADE — flag uji dengan RPC nyata; HELIUS_API_KEY membangun URL Helius mainnet jika RPC_URL kosong
 
 	GraceSeconds    int     `validate:"gte=0"`
+	GraceSL         float64 `validate:"gte=0"` // GRACE_SL — stop loss selama grace period (%)
+	GraceTP         float64 `validate:"gte=0"` // GRACE_TP — take profit selama grace period (%; 0 = pakai TP_PERCENT)
+	GraceTrailDrop  float64 `validate:"gte=0"` // GRACE_TRAIL_DROP — trailing drop dari peak di grace period (%; 0 = off, langsung TP)
 	MinHold         int     `validate:"gt=0"`
 	MaxHold         int     `validate:"gt=0"`
 	TakeProfit      float64 `validate:"gte=0"`
@@ -59,6 +65,7 @@ type Config struct {
 	PanicSL         float64 `validate:"gte=0"`
 	MomentumDrop    float64 `validate:"gte=0"`
 	QuoteIntervalMS int     `validate:"gt=0"`
+	ConfirmSLMS     int     `validate:"gte=0"` // CONFIRM_SL_MS — jeda konfirmasi SL/panic (ms), 0=langsung eksekusi
 	// Event-driven exits (WSS).
 	WhaleSellMinSOL float64 `validate:"gte=0"` // WHALE_SELL_MIN_SOL (0 = off)
 
@@ -74,6 +81,8 @@ type Config struct {
 	MinBalance     float64 `validate:"gte=0"`
 	EnableTrading  bool
 	MaxDailyTrades int `validate:"gte=0"`
+	// Positions terbuka bersamaan (setelah BUY sampai monitor selesai). 0 = tidak dibatasi.
+	MaxOpenPositions int `validate:"gte=0"`
 
 	// Production hazards (rlangga-env-contract.md §7)
 	MinDust            float64 `validate:"gte=0"` // 0 = abaikan filter debu
@@ -89,6 +98,8 @@ type Config struct {
 	PumpWSAutoHandle            bool   // true = parse mint dari pesan lalu HandleMint (hati-hati di produksi)
 	SimulateTrading             bool   // SIMULATE_TRADING — stream: hanya log mint, tanpa BUY/monitor (kecuali SimulateEngine)
 	SimulateEngine              bool   // SIMULATE_ENGINE — jalankan guard+lock+monitor+exit; BUY/SELL tanpa tx (quote nyata atau sintetis)
+	// SIMULATE_USE_LIVE_BALANCE — dengan SIMULATE_ENGINE: saldo untuk guard/TRADE_SIZE_PCT dari RPC (bukan 5 SOL virtual).
+	SimulateUseLiveBalance bool
 	// Quote sintetis (hanya jika SIMULATE_ENGINE + quote HTTP kosong): amplitudo/osilasi PnL paper.
 	SimulateSynthAmplitudePct float64 // SIMULATE_SYNTH_AMPLITUDE_PCT — 0 = default 12
 	SimulateSynthPeriodSec    float64 // SIMULATE_SYNTH_PERIOD_SEC — 0 = default 4 (pembagi waktu di sin)
@@ -113,7 +124,8 @@ type Config struct {
 	FilterWSSAllowMethods []string // FILTER_WSS_ALLOW_METHODS — method/channel yang diizinkan
 	FilterWSSMinSOL       float64  // FILTER_WSS_MIN_SOL — SOL minimum dari payload (0 = off)
 	FilterWSSMaxSOL       float64  // FILTER_WSS_MAX_SOL — SOL maksimum dari payload (0 = off)
-	// FILTER_WSS_POOL — jika di-set, field pool dari payload harus cocok salah satu (lowercase); kosong = off
+	// FILTER_WSS_POOL — jika di-set, field pool dari payload harus cocok salah satu (lowercase); kosong = off.
+	// Default yang disarankan di template: pump-amm saja (likuiditas AMM); tanpa bonding curve "pump" kecuali sengaja.
 	FilterWSSPoolAllow       []string
 	FilterWSSMinMarketCapSOL float64 // FILTER_WSS_MIN_MARKET_CAP_SOL — marketCapSol minimum (0 = off)
 	FilterWSSMaxMarketCapSOL float64 // FILTER_WSS_MAX_MARKET_CAP_SOL — marketCapSol maksimum (0 = off)
@@ -124,6 +136,12 @@ type Config struct {
 	FilterWSSRejectMintAuthority   bool     // FILTER_WSS_REJECT_MINT_AUTHORITY (WSS gate)
 	FilterWSSRejectFreezeAuthority bool     // FILTER_WSS_REJECT_FREEZE_AUTHORITY (WSS gate)
 	FilterWSSDenyTokenExtensions   []string // FILTER_WSS_DENY_TOKEN_EXTENSIONS (lowercase)
+	FilterWSSMinSolInPool          float64  `validate:"gte=0"` // FILTER_WSS_MIN_SOL_IN_POOL (WSS gate)
+	// Smart entry filters (berbasis Mint Activity Tracker — sliding window event per mint).
+	FilterMinBuySellRatio  float64       `validate:"gte=0"` // FILTER_MIN_BUY_SELL_RATIO — rasio buy/sell minimum sebelum entry (0=off)
+	FilterMinTokenAgeSec   float64       `validate:"gte=0"` // FILTER_MIN_TOKEN_AGE_SEC — umur token minimum sejak pertama kali terlihat di stream (0=off)
+	FilterRequireMcapRise  bool                              // FILTER_REQUIRE_MCAP_RISE — wajib mcap naik (momentum positif) sebelum entry
+	FilterActivityWindowSec float64      `validate:"gte=0"` // FILTER_ACTIVITY_WINDOW_SEC — lebar window untuk analisis aktivitas (default 30)
 	// Analisis & filter snapshot entry (dari ParseStreamEvent; lihat docs/sql/trades.sql)
 	TradeSQLitePath                 string  `validate:"omitempty"`     // TRADE_SQLITE_PATH — file .sqlite untuk query SQL (selain Redis)
 	FilterMinInitialBuy             float64 `validate:"gte=0"`         // FILTER_MIN_INITIAL_BUY — tolak BUY jika initialBuy < ini (0 = off; perlu snapshot)
@@ -131,6 +149,9 @@ type Config struct {
 	FilterMinEntrySolInPool         float64 `validate:"gte=0"`         // FILTER_MIN_ENTRY_SOL_IN_POOL — tolak jika solInPool < ini (0=off; butuh payload AMM)
 	FilterMinBurnedLiquidityPct     float64 `validate:"gte=0,lte=100"` // FILTER_MIN_BURNED_LIQUIDITY_PCT — tolak jika burnedLiquidity < ini (0=off)
 	FilterRejectPoolCreatedByCustom bool    // FILTER_REJECT_POOL_CREATED_BY_CUSTOM — tolak jika poolCreatedBy=custom
+
+	MintCooldownSec int    `validate:"gte=0"` // MINT_COOLDOWN_SEC — cooldown setelah trade per mint (default 300s / 5min)
+	HealthPort      string `validate:"omitempty"` // HEALTH_PORT — port untuk HTTP health check (default 8080)
 }
 
 // FilterWSSGateActive true jika setidaknya satu gate WSS di env di-set (selain nol/kosong).
@@ -142,7 +163,8 @@ func (c *Config) FilterWSSGateActive() bool {
 		len(c.FilterWSSAllowMethods) > 0 || c.FilterWSSMinSOL > 0 || c.FilterWSSMaxSOL > 0 ||
 		len(c.FilterWSSPoolAllow) > 0 || c.FilterWSSMinMarketCapSOL > 0 || c.FilterWSSMaxMarketCapSOL > 0 ||
 		len(c.FilterWSSRequirePoolCreatedBy) > 0 || c.FilterWSSMinBurnedLiquidityPct > 0 || c.FilterWSSMaxPoolFeeRate > 0 ||
-		c.FilterWSSRejectMintAuthority || c.FilterWSSRejectFreezeAuthority || len(c.FilterWSSDenyTokenExtensions) > 0
+		c.FilterWSSRejectMintAuthority || c.FilterWSSRejectFreezeAuthority || len(c.FilterWSSDenyTokenExtensions) > 0 ||
+		c.FilterWSSMinSolInPool > 0
 }
 
 // Load reads configuration from the environment, validates struct tags, then applies runtime guards.
@@ -171,12 +193,38 @@ func parseEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	trade, err := floatFromEnv("TRADE_SIZE", 0.1, 0, false)
+	tradeSizePct, err := floatFromEnv("TRADE_SIZE_PCT", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	tradeDefault := 0.1
+	allowZeroTrade := tradeSizePct > 0
+	trade, err := floatFromEnv("TRADE_SIZE", tradeDefault, 0, allowZeroTrade)
+	if err != nil {
+		return nil, err
+	}
+	maxTradeSizeSOL, err := floatFromEnv("MAX_TRADE_SIZE_SOL", 0, 0, true)
 	if err != nil {
 		return nil, err
 	}
 
 	grace, err := intFromEnv("GRACE_SECONDS", 2, 0)
+	if err != nil {
+		return nil, err
+	}
+	graceSL, err := floatFromEnv("GRACE_SL", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	graceTP, err := floatFromEnv("GRACE_TP", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	graceTrailDrop, err := floatFromEnv("GRACE_TRAIL_DROP", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	mintCooldown, err := intFromEnv("MINT_COOLDOWN_SEC", 300, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -208,6 +256,10 @@ func parseEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	confirmSLMS, err := intFromEnv("CONFIRM_SL_MS", 0, 0)
+	if err != nil {
+		return nil, err
+	}
 	whaleSellMinSOL, err := floatFromEnv("WHALE_SELL_MIN_SOL", 0, 0, true)
 	if err != nil {
 		return nil, err
@@ -220,7 +272,7 @@ func parseEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	reportMax, err := intFromEnv("REPORT_LOAD_RECENT", 200, 1)
+	reportMax, err := intFromEnv("REPORT_LOAD_RECENT", 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +286,10 @@ func parseEnv() (*Config, error) {
 		return nil, err
 	}
 	maxTrades, err := intFromEnv("MAX_DAILY_TRADES", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	maxOpenPos, err := intFromEnv("MAX_OPEN_POSITIONS", 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -339,6 +395,24 @@ func parseEnv() (*Config, error) {
 	}
 	filterRejectCustom := parseBoolish(os.Getenv("FILTER_REJECT_POOL_CREATED_BY_CUSTOM"), false)
 
+	filterWSSMinSolInPool, err := floatFromEnv("FILTER_WSS_MIN_SOL_IN_POOL", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	filterMinBuySellRatio, err := floatFromEnv("FILTER_MIN_BUY_SELL_RATIO", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	filterMinTokenAgeSec, err := floatFromEnv("FILTER_MIN_TOKEN_AGE_SEC", 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	filterRequireMcapRise := parseBoolish(os.Getenv("FILTER_REQUIRE_MCAP_RISE"), false)
+	filterActivityWindowSec, err := floatFromEnv("FILTER_ACTIVITY_WINDOW_SEC", 30, 0, true)
+	if err != nil {
+		return nil, err
+	}
+
 	pumpSlippage, err := floatFromEnv("PUMP_SLIPPAGE", 10, 0, true)
 	if err != nil {
 		return nil, err
@@ -426,11 +500,16 @@ func parseEnv() (*Config, error) {
 		PumpFeeBuyPct:                   feeBuyPct,
 		PumpFeeSellPct:                  feeSellPct,
 		TradeSize:                       trade,
+		TradeSizePct:                    tradeSizePct,
+		MaxTradeSizeSOL:                 maxTradeSizeSOL,
 		TimeoutMS:                       timeout,
 		RecoveryInterval:                time.Duration(recSec) * time.Second,
 		RPCStub:                         stub,
 		PaperTrade:                      paperTrade,
 		GraceSeconds:                    grace,
+		GraceSL:                         graceSL,
+		GraceTP:                         graceTP,
+		GraceTrailDrop:                  graceTrailDrop,
 		MinHold:                         minHold,
 		MaxHold:                         maxHold,
 		TakeProfit:                      tp,
@@ -438,6 +517,7 @@ func parseEnv() (*Config, error) {
 		PanicSL:                         panicSL,
 		MomentumDrop:                    mom,
 		QuoteIntervalMS:                 qms,
+		ConfirmSLMS:                     confirmSLMS,
 		WhaleSellMinSOL:                 whaleSellMinSOL,
 		TelegramBotToken:                os.Getenv("TELEGRAM_BOT_TOKEN"),
 		TelegramChatID:                  os.Getenv("TELEGRAM_CHAT_ID"),
@@ -448,6 +528,7 @@ func parseEnv() (*Config, error) {
 		MinBalance:                      minBal,
 		EnableTrading:                   parseEnableTrading(true),
 		MaxDailyTrades:                  maxTrades,
+		MaxOpenPositions:                maxOpenPos,
 		MinDust:                         minDust,
 		QuoteMaxAgeMS:                   quoteMaxAgeMS,
 		LockTTLMin:                      lockTTLMin,
@@ -459,6 +540,7 @@ func parseEnv() (*Config, error) {
 		PumpWSAutoHandle:                parseBoolish(os.Getenv("PUMP_WS_AUTO_HANDLE"), false),
 		SimulateTrading:                 parseBoolish(os.Getenv("SIMULATE_TRADING"), false),
 		SimulateEngine:                  parseBoolish(os.Getenv("SIMULATE_ENGINE"), false),
+		SimulateUseLiveBalance:          parseBoolish(os.Getenv("SIMULATE_USE_LIVE_BALANCE"), false),
 		SimulateSynthAmplitudePct:       synthAmp,
 		SimulateSynthPeriodSec:          synthPeriod,
 		SimulateSynthDriftPct:           synthDrift,
@@ -485,12 +567,19 @@ func parseEnv() (*Config, error) {
 		FilterWSSRejectMintAuthority:    filterWSSRejectMintAuth,
 		FilterWSSRejectFreezeAuthority:  filterWSSRejectFreezeAuth,
 		FilterWSSDenyTokenExtensions:    filterWSSDenyExt,
+		FilterWSSMinSolInPool:           filterWSSMinSolInPool,
+		FilterMinBuySellRatio:           filterMinBuySellRatio,
+		FilterMinTokenAgeSec:            filterMinTokenAgeSec,
+		FilterRequireMcapRise:           filterRequireMcapRise,
+		FilterActivityWindowSec:         filterActivityWindowSec,
 		TradeSQLitePath:                 tradeSQLitePath,
 		FilterMinInitialBuy:             filterMinIB,
 		FilterMinEntryMarketCapSOL:      filterMinEntryMcap,
 		FilterMinEntrySolInPool:         filterMinEntrySolInPool,
 		FilterMinBurnedLiquidityPct:     filterMinBurnPct,
 		FilterRejectPoolCreatedByCustom: filterRejectCustom,
+		MintCooldownSec:                 mintCooldown,
+		HealthPort:                      strings.TrimSpace(os.Getenv("HEALTH_PORT")),
 	}
 	return c, nil
 }
@@ -640,6 +729,9 @@ func floatFromEnv(key string, def float64, min float64, allowZero bool) (float64
 
 // validateRuntimeGuards encodes cross-field and operational rules (validator tags are per-field only).
 func validateRuntimeGuards(c *Config) error {
+	if c.TradeSize <= 0 && c.TradeSizePct <= 0 {
+		return fmt.Errorf("config runtime: TRADE_SIZE or TRADE_SIZE_PCT must be > 0")
+	}
 	if c.MinHold > c.MaxHold {
 		return fmt.Errorf("config runtime: MIN_HOLD (%d) must be <= MAX_HOLD (%d)", c.MinHold, c.MaxHold)
 	}

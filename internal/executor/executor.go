@@ -15,6 +15,7 @@ import (
 	"rlangga/internal/pumpnative"
 	"rlangga/internal/quote"
 	"rlangga/internal/rpc"
+	"rlangga/internal/wallet"
 )
 
 var errNotConfigured = errors.New("executor: pump URL not configured")
@@ -128,13 +129,17 @@ func sellOutcome(sell func(string) (string, error), mint string) (confirmed bool
 	return false, false
 }
 
+func buyAmount() float64 {
+	return wallet.GetTradeSize()
+}
+
 func pumpPortalBuy(mint string) (string, error) {
 	if config.C == nil {
 		return "", errNotConfigured
 	}
 	cfg := config.C
 	if pumpnative.ShouldUsePortalNative(cfg) {
-		sig, err := pumpnative.PortalBuy(cfg, mint)
+		sig, err := pumpnative.PortalBuy(cfg, mint, buyAmount())
 		if err == nil {
 			return sig, nil
 		}
@@ -157,7 +162,7 @@ func pumpApiBuy(mint string) (string, error) {
 	}
 	cfg := config.C
 	if pumpnative.ShouldUseAPINative(cfg) {
-		sig, err := pumpnative.APIBuy(cfg, mint)
+		sig, err := pumpnative.APIBuy(cfg, mint, buyAmount())
 		if err == nil {
 			return sig, nil
 		}

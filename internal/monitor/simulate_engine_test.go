@@ -30,7 +30,7 @@ func TestMonitorPositionWithBot_SimulateEngineFollowsRealPath(t *testing.T) {
 	b := bot.FromConfig(cfg)
 	done := make(chan struct{})
 	go func() {
-		MonitorPositionWithBot("So11111111111111111111111111111111111111112", 0.1, b, nil)
+		MonitorPositionWithBot("So11111111111111111111111111111111111111112", 0.1, b, nil, nil)
 		close(done)
 	}()
 	select {

@@ -9,6 +9,7 @@ import (
 const (
 	ExitPanic      = "panic"
 	ExitGraceTP    = "grace_tp"
+	ExitGraceSL    = "grace_sl"
 	ExitStopLoss   = "stop_loss"
 	ExitTakeProfit = "take_profit"
 	ExitMomentum   = "momentum"
@@ -17,10 +18,21 @@ const (
 	ExitWhaleDump  = "whale_dump"
 )
 
-// PositionState tracks peak PnL for momentum exit.
+// NeedsConfirmation returns true for loss-type exits that benefit from anti-wick delay.
+// Profit exits (grace_tp, take_profit) and max_hold execute immediately.
+func NeedsConfirmation(reason string) bool {
+	switch reason {
+	case ExitStopLoss, ExitGraceSL, ExitMomentum:
+		return true
+	}
+	return false
+}
+
+// PositionState tracks peak PnL for momentum exit and grace trailing.
 type PositionState struct {
-	BuySOL  float64
-	PeakPnL float64
+	BuySOL        float64
+	PeakPnL       float64
+	GraceTrailing bool
 }
 
 // ShouldSellAdaptive implements PR-002 exit engine using global config as one profile.
@@ -51,11 +63,30 @@ func AdaptiveExitReason(pnl float64, elapsed int, state *PositionState, b bot.Bo
 		return true, ExitPanic
 	}
 
-	if elapsed < b.GraceSeconds {
-		if pnl >= b.TakeProfit {
+	if elapsed < b.GraceSeconds || state.GraceTrailing {
+		graceTP := b.GraceTP
+		if graceTP <= 0 {
+			graceTP = b.TakeProfit
+		}
+
+		if b.GraceTrailDrop > 0 && (pnl >= graceTP || state.GraceTrailing) {
+			state.GraceTrailing = true
+			drop := state.PeakPnL - pnl
+			if drop >= b.GraceTrailDrop {
+				return true, ExitGraceTP
+			}
+			return false, ""
+		}
+
+		if pnl >= graceTP {
 			return true, ExitGraceTP
 		}
-		return false, ""
+		if elapsed < b.GraceSeconds {
+			if b.GraceSL > 0 && pnl <= -b.GraceSL {
+				return true, ExitGraceSL
+			}
+			return false, ""
+		}
 	}
 
 	if pnl <= -b.StopLoss {

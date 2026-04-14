@@ -3,7 +3,10 @@ package pumpws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -33,6 +36,11 @@ func Run(ctx context.Context, opt Options, onMessage func([]byte)) {
 }
 
 func runLoop(ctx context.Context, opt Options, onMessage func([]byte)) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error(fmt.Sprintf("PANIC RECOVERED [pumpws:%s]: %v\n%s", opt.URL, r, debug.Stack()))
+		}
+	}()
 	url := opt.URL
 	backoff := time.Second
 	for {
@@ -48,7 +56,7 @@ func runLoop(ctx context.Context, opt Options, onMessage func([]byte)) {
 			sleepBackoff(ctx, &backoff)
 			continue
 		}
-		backoff = time.Second
+		connStart := time.Now()
 		log.Info("pumpws: connected " + url)
 
 		for _, payload := range subscribePayloads(opt) {
@@ -61,9 +69,16 @@ func runLoop(ctx context.Context, opt Options, onMessage func([]byte)) {
 		_ = conn.Close()
 		if readErr != nil && ctx.Err() == nil {
 			log.Error("pumpws: read: " + readErr.Error())
+			if isPolicyViolation(readErr) {
+				log.Info("pumpws: policy violation detected, forcing 60s cooldown")
+				backoff = 60 * time.Second
+			}
 		}
 		if ctx.Err() != nil {
 			return
+		}
+		if time.Since(connStart) > 10*time.Second {
+			backoff = time.Second
 		}
 		sleepBackoff(ctx, &backoff)
 	}
@@ -71,7 +86,10 @@ func runLoop(ctx context.Context, opt Options, onMessage func([]byte)) {
 
 func sleepBackoff(ctx context.Context, backoff *time.Duration) {
 	t := *backoff
-	timer := time.NewTimer(t)
+	jitter := time.Duration(rand.Int63n(int64(t)/2 + 1))
+	sleepDur := t + jitter
+	log.Info(fmt.Sprintf("pumpws: reconnect backoff %v (jitter %v)", sleepDur.Round(time.Millisecond), jitter.Round(time.Millisecond)))
+	timer := time.NewTimer(sleepDur)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
@@ -81,6 +99,33 @@ func sleepBackoff(ctx context.Context, backoff *time.Duration) {
 		t *= 2
 	}
 	*backoff = t
+}
+
+func isPolicyViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	var closeErr *websocket.CloseError
+	if ok := isCloseError(err, &closeErr); ok && closeErr.Code == 1008 {
+		return true
+	}
+	return strings.Contains(err.Error(), "1008") || strings.Contains(err.Error(), "policy violation")
+}
+
+func isCloseError(err error, target **websocket.CloseError) bool {
+	for err != nil {
+		if ce, ok := err.(*websocket.CloseError); ok {
+			*target = ce
+			return true
+		}
+		type unwrapper interface{ Unwrap() error }
+		u, ok := err.(unwrapper)
+		if !ok {
+			return false
+		}
+		err = u.Unwrap()
+	}
+	return false
 }
 
 func readUntilClose(ctx context.Context, conn *websocket.Conn, onMessage func([]byte)) error {

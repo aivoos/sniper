@@ -7,6 +7,7 @@ import (
 	"rlangga/internal/config"
 	"rlangga/internal/executor"
 	"rlangga/internal/guard"
+	"rlangga/internal/log"
 	"rlangga/internal/orchestrator"
 	"rlangga/internal/quote"
 	"rlangga/internal/redisx"
@@ -14,6 +15,7 @@ import (
 	"rlangga/internal/rpc"
 	"rlangga/internal/sellguard"
 	"rlangga/internal/store"
+	"rlangga/internal/wallet"
 )
 
 // RecoverAll scans wallet tokens and force-sells any with balance > 0.
@@ -39,7 +41,7 @@ func RecoverAll() {
 			continue
 		}
 		sellSOL := quote.GetSellQuote(t.Mint)
-		buySOL := cfg.TradeSize
+		buySOL := wallet.GetTradeSize()
 		ts := time.Now().Unix()
 		pnlSOL := sellSOL - buySOL
 		pct := 0.0
@@ -64,7 +66,9 @@ func RecoverAll() {
 		if err == nil && saved {
 			_ = guard.UpdateDailyLoss(pnlSOL)
 		}
-		_ = report.NotifyTradeSaved()
+		if err := report.NotifyTradeSavedWithTrade(tr); err != nil {
+			log.Error("report: NotifyTradeSaved: " + err.Error())
+		}
 		if cfg.StaleBalanceWaitMS > 0 {
 			time.Sleep(time.Duration(cfg.StaleBalanceWaitMS) * time.Millisecond)
 		}
@@ -75,6 +79,11 @@ func RecoverAll() {
 // StartLoop runs RecoverAll forever with RECOVERY_INTERVAL between iterations.
 func StartLoop() {
 	startLoop(context.Background())
+}
+
+// StartLoopWithContext runs RecoverAll until ctx is cancelled.
+func StartLoopWithContext(ctx context.Context) {
+	startLoop(ctx)
 }
 
 func startLoop(ctx context.Context) {

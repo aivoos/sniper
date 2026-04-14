@@ -154,7 +154,7 @@ Ringkasan field JSON / subscribe untuk **filter** (bukan hanya mint): [wss-data-
 
 Hanya dievaluasi jika `PUMP_WS_AUTO_HANDLE=1` **dan** setidaknya satu variabel di bawah di-set (bukan nol dan tidak kosong). Parsing: `internal/pumpws.ParseStreamEvent` — lihat [wss-data-for-filters.md](./wss-data-for-filters.md).
 
-**Profil ringkas (hanya pool):** cukup **`FILTER_WSS_POOL`** (mis. `pump` atau `pump,pump-amm`); variabel WSS lainnya boleh kosong — gate yang jalan hanya pengecekan field `pool` pada payload.
+**Profil ringkas (hanya pool):** cukup **`FILTER_WSS_POOL`** — default disarankan **`pump-amm`** (AMM saja; tanpa venue `pump` / bonding curve kecuali kamu sengaja memasukkannya). Variabel WSS lainnya boleh kosong — gate yang jalan hanya pengecekan field `pool` pada payload.
 
 | Variabel | Wajib | Contoh | Keterangan |
 |----------|-------|--------|------------|
@@ -163,7 +163,7 @@ Hanya dievaluasi jika `PUMP_WS_AUTO_HANDLE=1` **dan** setidaknya satu variabel d
 | `FILTER_WSS_ALLOW_METHODS` | Opsional | `subscribenewtoken` | Jika di-set, field `method`/`channel` harus cocok (payload tanpa field → ditolak). |
 | `FILTER_WSS_MIN_SOL` | Opsional | `0` | Minimal nilai SOL dari field numerik (`solAmount`, `sol`, …) atau `lamports`/1e9; `0` = off. |
 | `FILTER_WSS_MAX_SOL` | Opsional | `0` | Maksimum; `0` = off. Harus `MIN` ≤ `MAX` jika keduanya positif. |
-| `FILTER_WSS_POOL` | Opsional | `pump` | Daftar dipisah koma; jika di-set, field `pool` dari payload (root atau nested) harus cocok salah satu. |
+| `FILTER_WSS_POOL` | Opsional | `pump-amm` | Daftar dipisah koma; jika di-set, field `pool` dari payload (root atau nested) harus cocok salah satu. Default template: **AMM saja** (`pump-amm`). |
 | `FILTER_WSS_MIN_MARKET_CAP_SOL` | Opsional | `0` | Minimal `marketCapSol` (angka dari JSON); `0` = off. |
 | `FILTER_WSS_MAX_MARKET_CAP_SOL` | Opsional | `0` | Maksimum; `0` = off. Harus `MIN` ≤ `MAX` jika keduanya positif. |
 

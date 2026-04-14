@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"rlangga/internal/guard"
+	"rlangga/internal/positionlimit"
 	"rlangga/internal/redisx"
 	"rlangga/internal/report"
 	"rlangga/internal/store"
@@ -37,5 +38,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "guard:", err)
 		os.Exit(1)
 	}
-	fmt.Println("OK: riwayat trade + dedupe, counter laporan, dan stat harian guard (loss/kuota UTC) sudah direset.")
+	if err := positionlimit.ResetRedisState(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, "positionlimit:", err)
+		os.Exit(1)
+	}
+	fmt.Println("OK: riwayat trade + dedupe, counter laporan, stat harian guard, dan rlangga:pos:* (slot posisi) sudah direset.")
 }

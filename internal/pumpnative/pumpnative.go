@@ -44,11 +44,11 @@ func PortalTradeURL(cfg *config.Config) string {
 }
 
 // PortalBuy Lightning buy (POST trade URL).
-func PortalBuy(cfg *config.Config, mint string) (string, error) {
+func PortalBuy(cfg *config.Config, mint string, amount float64) (string, error) {
 	body := map[string]interface{}{
 		"action":           "buy",
 		"mint":             mint,
-		"amount":           cfg.TradeSize,
+		"amount":           amount,
 		"denominatedInSol": "true",
 		"slippage":         cfg.PumpSlippage,
 		"priorityFee":      cfg.PumpPriorityFee,
@@ -82,11 +82,11 @@ func apiBase(cfg *config.Config) string {
 }
 
 // APIBuy POST https://api.pumpapi.io — identitas: PUMP_PRIVATE_KEY (privateKey, base58) disarankan, atau PUMP_WALLET_PUBLIC_KEY (legacy).
-func APIBuy(cfg *config.Config, mint string) (string, error) {
+func APIBuy(cfg *config.Config, mint string, amount float64) (string, error) {
 	body := map[string]interface{}{
 		"action":             "buy",
 		"mint":               mint,
-		"amount":             cfg.TradeSize,
+		"amount":             amount,
 		"denominatedInQuote": "true",
 		"slippage":           cfg.PumpAPISlippage,
 	}
