@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"rlangga/internal/idempotency"
+	"rlangga/internal/pumpws"
 	"rlangga/internal/redisx"
 )
 
@@ -24,7 +26,67 @@ type Trade struct {
 	PnLSOL      float64 `json:"pnl_sol"`
 	Percent     float64 `json:"percent"`
 	DurationSec int     `json:"duration_sec"`
-	TS          int64   `json:"ts"`
+	ExitReason  string  `json:"exit_reason,omitempty"` // adaptive exit: panic, grace_tp, …; recovery: recovery
+	TS          int64   `json:"ts"`                    // unix detik — waktu tutup posisi / SELL terekam (alias analitik: sell)
+	BuyTS       int64   `json:"buy_ts,omitempty"`      // unix detik — mulai monitor setelah BUY (buka posisi)
+	// Snapshot dari payload WSS saat entry (opsional; untuk analisis SQL / tuning).
+	EntryInitialBuy         float64 `json:"entry_initial_buy,omitempty"`    // initialBuy token (create)
+	EntryMarketCapSOL       float64 `json:"entry_market_cap_sol,omitempty"` // proxy "ukuran" dari stream (bukan reserve on-chain)
+	EntryPool               string  `json:"entry_pool,omitempty"`
+	EntryPoolID             string  `json:"entry_pool_id,omitempty"`
+	EntryStreamTimestampMs  int64   `json:"entry_stream_ts_ms,omitempty"` // timestamp ms dari field "timestamp" WSS jika ada
+	EntryTxType             string  `json:"entry_tx_type,omitempty"`
+	EntryPoolCreatedBy      string  `json:"entry_pool_created_by,omitempty"`
+	EntryBurnedLiquidityPct float64 `json:"entry_burned_liquidity_pct,omitempty"`
+	EntrySolInPool          float64 `json:"entry_sol_in_pool,omitempty"`
+	EntryTokensInPool       float64 `json:"entry_tokens_in_pool,omitempty"`
+	// Snapshot tracker aktivitas saat BUY (opsional; untuk analisis win rate vs ratio / mcap).
+	EntryActivityRecorded bool    `json:"entry_activity_recorded,omitempty"`
+	EntryBuySellRatio     float64 `json:"entry_buy_sell_ratio,omitempty"`
+	EntryMcapRising       bool    `json:"entry_mcap_rising,omitempty"`
+}
+
+// ApplyStreamEntryToTrade mengisi kolom entry_* dari payload WSS (snapshot pra-BUY).
+func ApplyStreamEntryToTrade(tr *Trade, ev *pumpws.StreamEvent) {
+	if tr == nil || ev == nil {
+		return
+	}
+	if ev.HasInitialBuy {
+		tr.EntryInitialBuy = ev.InitialBuy
+	}
+	if ev.HasMarketCapSOL {
+		tr.EntryMarketCapSOL = ev.MarketCapSOL
+	}
+	tr.EntryPool = ev.Pool
+	tr.EntryPoolID = ev.PoolID
+	if ev.HasTimestamp {
+		tr.EntryStreamTimestampMs = ev.TimestampMs
+	}
+	if ev.TxType != "" {
+		tr.EntryTxType = ev.TxType
+	}
+	if ev.PoolCreatedBy != "" {
+		tr.EntryPoolCreatedBy = ev.PoolCreatedBy
+	}
+	if ev.HasBurnedLiquidity {
+		tr.EntryBurnedLiquidityPct = ev.BurnedLiquidityPct
+	}
+	if ev.HasSolInPool {
+		tr.EntrySolInPool = ev.SolInPool
+	}
+	if ev.HasTokensInPool {
+		tr.EntryTokensInPool = ev.TokensInPool
+	}
+}
+
+// ApplyActivitySnapshotToTrade mengisi kolom entry_* dari tracker aktivitas saat BUY.
+func ApplyActivitySnapshotToTrade(tr *Trade, snap *pumpws.ActivitySnapshot) {
+	if tr == nil || snap == nil {
+		return
+	}
+	tr.EntryActivityRecorded = true
+	tr.EntryBuySellRatio = snap.BuySellRatio
+	tr.EntryMcapRising = snap.McapRising
 }
 
 // SaveTrade appends a trade to Redis (LPUSH). Duplicate identical payloads are ignored (SETNX on content hash).
@@ -49,7 +111,12 @@ func SaveTrade(t Trade) (saved bool, err error) {
 		return false, nil
 	}
 	if err := redisx.Client.LPush(ctx, keyTradesList, string(raw)).Err(); err != nil {
+		_ = redisx.Client.Del(ctx, dedupeKey).Err()
 		return false, err
+	}
+	insertTradeSQLite(t)
+	if t.PnLSOL < 0 {
+		idempotency.SetCooldown(t.Mint)
 	}
 	return true, nil
 }
@@ -67,6 +134,23 @@ func LoadRecent(n int) ([]Trade, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseTradeJSONBatch(vals)
+}
+
+// LoadAll returns every trade in trades:list (newest first, same order as LoadRecent).
+func LoadAll() ([]Trade, error) {
+	if redisx.Client == nil {
+		return nil, fmt.Errorf("store: redis not initialized")
+	}
+	ctx := context.Background()
+	vals, err := redisx.Client.LRange(ctx, keyTradesList, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+	return parseTradeJSONBatch(vals)
+}
+
+func parseTradeJSONBatch(vals []string) ([]Trade, error) {
 	out := make([]Trade, 0, len(vals))
 	for _, v := range vals {
 		var t Trade
@@ -76,4 +160,13 @@ func LoadRecent(n int) ([]Trade, error) {
 		out = append(out, t)
 	}
 	return out, nil
+}
+
+// LoadTradesForReport loads trades for aggregates and Telegram reports.
+// limit <= 0 means load the full list (no cap).
+func LoadTradesForReport(limit int) ([]Trade, error) {
+	if limit <= 0 {
+		return LoadAll()
+	}
+	return LoadRecent(limit)
 }

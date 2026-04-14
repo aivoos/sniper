@@ -76,6 +76,8 @@ if state == EXITING {
 
 Transisi ke `EXITING` harus **satu pemenang** (satu writer) — misalnya CAS atau lock ringan sebelum kirim SELL.
 
+**Status implementasi:** kunci Redis `position:exiting:<mint>` (SETNX + TTL) di paket `sellguard`, dilepas setelah attempt SELL; monitor dan recovery memeriksa kunci sebelum `SafeSellWithValidation`.
+
 ---
 
 ## 3. Partial fill dan loop retry (debu saldo)
@@ -166,6 +168,8 @@ if hour >= 20 || hour <= 2
 ```
 
 Pastikan zona waktu **WIB** (atau yang dipilih) konsisten di server; uji unit untuk jam 00:30, 21:00, 19:59, 02:01.
+
+**Status implementasi:** env `TZ`, `ACTIVE_START_HOUR`, `ACTIVE_END_HOUR` di `config`; gate BUY lewat `guard.IsWithinActiveTradingHours` di dalam `CanTrade` (bukan untuk jalur recovery/SELL).
 
 ---
 
@@ -259,3 +263,21 @@ Guard memblokir “semua” jalur ketika kuota habis atau kill switch — recove
 *Implementasi konkret (nama fungsi, kunci Redis) harus selaras dengan PR terkait; dokumen ini mengunci **kelas bug** dan **pola perbaikan** agar review dan uji regresi tidak melewatkan edge case.*
 
 *Nama env untuk `MIN_DUST`, `QUOTE_MAX_AGE_MS`, `LOCK_TTL_MIN`, dll.: [rlangga-env-contract.md](./rlangga-env-contract.md) §7.*
+
+---
+
+## Status implementasi di kode (lanjutan)
+
+| # | Hazard | Implementasi saat ini |
+|---|--------|------------------------|
+| 4 | Quote basi | `QUOTE_MAX_AGE_MS` — monitor melewati tick jika usia sampel quote melebihi ambang (hanya jika sampel sukses dan stempel waktu tersedia). |
+| 5 | TTL lock | `LOCK_TTL_MIN` (default **12** menit saat env kosong); tanpa `config.Load`, lock tetap **5** menit (kompatibilitas tes). |
+| 3 | Debu saldo | `MIN_DUST` — recovery melewati token dengan `Amount` di bawah ambang (hanya jika `MIN_DUST` > 0). |
+| 10 | Float loss | `IsKillSwitchTriggered` membandingkan loss dan `MAX_DAILY_LOSS` setelah pembulatan ke **6** desimal. |
+| 11 | Saldo RPC lag | `STALE_BALANCE_WAIT_MS` — jeda setelah satu iterasi recovery yang menyelesaikan SELL + laporan (antara token berikutnya). |
+| 9 | Orchestrator | `internal/orchestrator` memakai `atomic.Uint64` untuk round-robin (sudah aman konkuren). |
+| 6 | Kuota | `IncrDailyTradeCount` hanya dipanggil dari `HandleMint` setelah `BuyAndValidate` sukses. |
+| 1 | BUY vs state | `HandleMint`: lock → BUY → unlock jika gagal; komentar di kode merujuk mitigasi §1. |
+| 12 | Recovery vs guard | `CanTrade` hanya dipanggil untuk jalur BUY; recovery tidak memanggilnya. |
+
+Belum di kode Redis umum: **§2** status `EXITING` per-mint, **§7** jendela jam aktif (`ACTIVE_START_HOUR` / `ACTIVE_END_HOUR` di `CanTrade`), **§8** interval recovery adaptif — dapat ditambah pada PR berikutnya.

@@ -123,6 +123,8 @@ func CanTrade(balance float64) bool {
 
 ## 8. Integrasi worker
 
+Cuplikan di bawah menyoroti **gate BUY** (`CanTrade`). Urutan penuh `HandleMint` termasuk filter opsional **sebelum** idempotency — sama dengan [PR-004 §5](./rlangga-pr-004-multi-bot.md) dan `internal/app/app.go`.
+
 ```go
 func HandleMint(mint string) {
 
@@ -132,6 +134,9 @@ func HandleMint(mint string) {
         log.Info("TRADE BLOCKED")
         return
     }
+
+    // Opsional: FILTER_REQUIRE_INITIAL_BUY, lalu FILTER_ANTI_RUG → filter.AllowMint
+    // (lihat PR-004 §5 dan rlangga-env-contract.md §7c.1)
 
     if idempotency.IsDuplicate(mint) {
         return
@@ -153,7 +158,7 @@ func HandleMint(mint string) {
 }
 ```
 
-Urutan: **guard dulu** → idempotency → lock → … — konsisten dengan [PR-004](./rlangga-pr-004-multi-bot.md).
+Urutan: **guard** → *(opsional)* filter / suffix → **idempotency** → **lock** → BUY → monitor — konsisten dengan [PR-004](./rlangga-pr-004-multi-bot.md).
 
 ---
 

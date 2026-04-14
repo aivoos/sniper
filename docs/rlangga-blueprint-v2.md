@@ -20,6 +20,8 @@
 | [rlangga-env-contract.md](./rlangga-env-contract.md) | Kontrak semua variabel lingkungan (`.env`) dalam satu tabel |
 | [rlangga-test-standard.md](./rlangga-test-standard.md) | Standar pengujian Google-grade: piramida, determinisme, CI, mocking |
 | [rlangga-dev-parity.md](./rlangga-dev-parity.md) | Parity lokal / CI / server; toolchain (Go, Docker, gcc untuk `-race`) |
+| [implementation-vs-spec.md](./implementation-vs-spec.md) | Celah implementasi vs blueprint/PR (wallet stub, recovery RPC, cuplikan usang) |
+| [filter-rug-honeypot.md](./filter-rug-honeypot.md) | Filter on-chain opsional sebelum BUY (freeze/mint authority, konsentrasi holder); env: [rlangga-env-contract.md](./rlangga-env-contract.md) §7c.1 |
 
 ---
 

@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
+	"rlangga/internal/pumpws"
 	"rlangga/internal/redisx"
 	"rlangga/internal/testutil"
 )
@@ -70,5 +72,35 @@ func TestLoadRecent_NoRedis(t *testing.T) {
 	t.Cleanup(func() { redisx.Client = prev })
 	if _, err := LoadRecent(3); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestSaveTrade_SQLiteMirror(t *testing.T) {
+	testutil.UseMiniredis(t)
+	dbPath := filepath.Join(t.TempDir(), "mirror.db")
+	t.Cleanup(func() {
+		if sqliteDB != nil {
+			_ = sqliteDB.Close()
+			sqliteDB = nil
+		}
+	})
+	if err := InitTradeSQLite(dbPath); err != nil {
+		t.Fatal(err)
+	}
+	ev := &pumpws.StreamEvent{InitialBuy: 1e8, HasInitialBuy: true, MarketCapSOL: 42, HasMarketCapSOL: true, Pool: "pump", PoolID: "pid1"}
+	tr := Trade{
+		Mint: "mintSql", BuySOL: 0.1, SellSOL: 0.11, PnLSOL: 0.01, Percent: 10, DurationSec: 4, TS: 300, ExitReason: "take_profit",
+	}
+	ApplyStreamEntryToTrade(&tr, ev)
+	saved, err := SaveTrade(tr)
+	if err != nil || !saved {
+		t.Fatalf("save: err=%v saved=%v", err, saved)
+	}
+	var n int
+	if err := sqliteDB.QueryRow(`SELECT COUNT(*) FROM trades WHERE mint = ? AND entry_pool = ?`, "mintSql", "pump").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("want 1 row in sqlite, got %d", n)
 	}
 }

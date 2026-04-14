@@ -20,13 +20,22 @@ func TestIsDuplicate_WithinWindow(t *testing.T) {
 	}
 }
 
-func TestIsDuplicate_NoRedis(t *testing.T) {
-	if IsDuplicate("m") {
-		t.Fatal("without redis should not treat as duplicate")
+func TestIsDuplicate_NoRedis_FailClosed(t *testing.T) {
+	// Fail-closed: no Redis means treat as duplicate (block trade)
+	if !IsDuplicate("m") {
+		t.Fatal("without redis should treat as duplicate (fail-closed)")
 	}
 }
 
-func TestIsDuplicate_RedisError(t *testing.T) {
+func TestSetCooldown_BlocksDuplicate(t *testing.T) {
+	testutil.UseMiniredis(t)
+	SetCooldown("coolmint")
+	if !IsDuplicate("coolmint") {
+		t.Fatal("cooldown key should block as duplicate")
+	}
+}
+
+func TestIsDuplicate_RedisError_FailClosed(t *testing.T) {
 	s, err := miniredis.Run()
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +48,8 @@ func TestIsDuplicate_RedisError(t *testing.T) {
 		}
 		redisx.Client = nil
 	})
-	if IsDuplicate("m") {
-		t.Fatal("redis error should not count as duplicate")
+	// Fail-closed: Redis error means treat as duplicate (block trade)
+	if !IsDuplicate("m") {
+		t.Fatal("redis error should treat as duplicate (fail-closed)")
 	}
 }

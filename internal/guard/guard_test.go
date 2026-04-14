@@ -93,6 +93,23 @@ func TestIsKillSwitchTriggered(t *testing.T) {
 	}
 }
 
+func TestIsKillSwitchTriggered_SixDecimalRounding(t *testing.T) {
+	testutil.UseMiniredis(t)
+	t.Setenv("RPC_STUB", "1")
+	t.Setenv("MAX_DAILY_LOSS", "0.5")
+	if _, err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
+	_ = redisx.Client.Set(context.Background(), keyDailyLoss(), "0.4999994", 0).Err()
+	if IsKillSwitchTriggered() {
+		t.Fatal("below max after rounding")
+	}
+	_ = redisx.Client.Set(context.Background(), keyDailyLoss(), "0.4999995", 0).Err()
+	if !IsKillSwitchTriggered() {
+		t.Fatal("at max after rounding")
+	}
+}
+
 func TestCanTrade_NilConfig(t *testing.T) {
 	prev := config.C
 	config.C = nil

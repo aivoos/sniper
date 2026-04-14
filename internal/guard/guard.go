@@ -3,6 +3,7 @@ package guard
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -80,6 +81,7 @@ func DailyTradeCount() (int64, error) {
 }
 
 // IsKillSwitchTriggered membandingkan akumulasi rugi dengan MAX_DAILY_LOSS (0 = nonaktif).
+// Fail-closed: returns true (blocks trading) on Redis errors.
 func IsKillSwitchTriggered() bool {
 	cfg := config.C
 	if cfg == nil || cfg.MaxDailyLoss <= 0 {
@@ -87,9 +89,12 @@ func IsKillSwitchTriggered() bool {
 	}
 	loss, err := DailyLossSOL()
 	if err != nil {
-		return false
+		report.SendPlainMessage("GUARD: Redis error reading daily loss, fail-closed (blocking trades)")
+		return true
 	}
-	return loss >= cfg.MaxDailyLoss
+	lossR := math.Round(loss*1e6) / 1e6
+	maxR := math.Round(cfg.MaxDailyLoss*1e6) / 1e6
+	return lossR >= maxR
 }
 
 // HasEnoughBalance memeriksa saldo vs MIN_BALANCE.
@@ -116,9 +121,16 @@ func CanTrade(balanceSOL float64) bool {
 	}
 	if cfg.MaxDailyTrades > 0 {
 		n, err := DailyTradeCount()
-		if err == nil && n >= int64(cfg.MaxDailyTrades) {
+		if err != nil {
+			report.SendPlainMessage("GUARD: Redis error reading trade count, fail-closed")
 			return false
 		}
+		if n >= int64(cfg.MaxDailyTrades) {
+			return false
+		}
+	}
+	if !IsWithinActiveTradingHours() {
+		return false
 	}
 	return true
 }
